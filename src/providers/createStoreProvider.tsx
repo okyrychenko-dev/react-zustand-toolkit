@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, useContext, useEffect, useMemo, useRef } from "react";
+import { type ReactNode, createContext, useContext, useRef } from "react";
 import { createStore, useStore } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -48,9 +48,9 @@ export function createStoreProvider<
     devtoolsName = contextName,
     onStoreCreate,
   }: StoreProviderProps<TState>): ReactNode {
-    const lastStoreRef = useRef<StoreApi<TState> | null>(null);
+    const storeRef = useRef<StoreApi<TState> | null>(null);
 
-    const store = useMemo(() => {
+    if (!storeRef.current) {
       const newStore = enableDevtools
         ? createStore(
             devtools(wrapForDevtools(storeCreator), {
@@ -60,17 +60,14 @@ export function createStoreProvider<
           )
         : createStore<TState, TMutators>(storeCreator);
 
-      return newStore;
-    }, [enableDevtools, devtoolsName]);
+      // Call onStoreCreate synchronously during first render
+      // This ensures any setup (like middleware registration) happens before children render
+      onStoreCreate?.(newStore);
 
-    useEffect(() => {
-      if (!onStoreCreate || lastStoreRef.current === store) {
-        return;
-      }
+      storeRef.current = newStore;
+    }
 
-      lastStoreRef.current = store;
-      onStoreCreate(store);
-    }, [onStoreCreate, store]);
+    const store = storeRef.current;
 
     return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
   }
