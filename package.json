@@ -1,6 +1,6 @@
 {
   "name": "@okyrychenko-dev/react-zustand-toolkit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "A powerful toolkit for creating type-safe Zustand stores with automatic shallow comparison, provider patterns, and smart context resolution",
   "main": "./dist/index.js",
