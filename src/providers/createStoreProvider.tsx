@@ -18,19 +18,154 @@ function wrapForDevtools<
 }
 
 /**
- * Creates a React Context provider for isolated Zustand store instances
+ * Creates a React Context provider for isolated Zustand store instances.
  *
- * This is useful for:
- * - Server-side rendering (each request gets its own store)
- * - Testing (no need for beforeEach cleanup)
- * - Micro-frontends (isolated state per app)
- * - Multiple instances of the same component tree with independent state
+ * This utility creates a React Context provider that wraps a Zustand store, allowing
+ * each provider instance to have its own isolated store. This is essential for:
+ * - **Server-Side Rendering**: Each request gets its own store instance
+ * - **Testing**: No shared state between test runs
+ * - **Micro-frontends**: Isolated state per application instance
+ * - **Multiple instances**: Same component tree with independent state
  *
- * @template TState - The shape of your store state
- * @template TMutators - Array of mutators (middleware) applied to the store
+ * The provider automatically integrates Zustand DevTools in development mode and
+ * provides hooks for accessing the store from components within the provider tree.
+ *
+ * Returns an object with:
+ * - `Provider`: React component to wrap your app
+ * - `useContext`: Hook to get the store API
+ * - `useContextStore`: Hook to select values from store (with shallow comparison)
+ * - `useIsInsideProvider`: Hook to check if inside provider
+ * - `useOptionalContext`: Hook that returns null if outside provider
+ *
+ * @template TState - The shape of your store state and actions
+ * @template TMutators - Array of mutators (middleware) applied to the store (default: [])
+ *
  * @param storeCreator - Function that creates the store state and actions
- * @param contextName - Optional name for better debugging (used in React DevTools)
- * @returns Provider component and hooks to access the context store
+ * @param contextName - Optional name for better debugging (default: 'Store')
+ *                      Used in React DevTools and error messages
+ *
+ * @returns Object with Provider component and hooks to access the context store
+ *
+ * @example
+ * Basic usage with provider
+ * ```tsx
+ * import { createStoreProvider } from '@okyrychenko-dev/react-zustand-toolkit';
+ *
+ * interface TodoState {
+ *   todos: Todo[];
+ *   addTodo: (text: string) => void;
+ *   removeTodo: (id: string) => void;
+ * }
+ *
+ * const { Provider: TodoProvider, useContextStore: useTodoStore } = 
+ *   createStoreProvider<TodoState>(
+ *     (set) => ({
+ *       todos: [],
+ *       addTodo: (text) => set((state) => ({
+ *         todos: [...state.todos, { id: Date.now().toString(), text }]
+ *       })),
+ *       removeTodo: (id) => set((state) => ({
+ *         todos: state.todos.filter(t => t.id !== id)
+ *       })),
+ *     }),
+ *     'Todo'
+ *   );
+ *
+ * // Wrap your app
+ * function App() {
+ *   return (
+ *     <TodoProvider>
+ *       <TodoList />
+ *       <AddTodo />
+ *     </TodoProvider>
+ *   );
+ * }
+ *
+ * // Use in components
+ * function TodoList() {
+ *   const todos = useTodoStore((state) => state.todos);
+ *   return <ul>{todos.map(todo => <li key={todo.id}>{todo.text}</li>)}</ul>;
+ * }
+ * ```
+ *
+ * @example
+ * Multiple independent instances
+ * ```tsx
+ * const { Provider: CounterProvider, useContextStore } = 
+ *   createStoreProvider<CounterState>(..., 'Counter');
+ *
+ * function App() {
+ *   return (
+ *     <div>
+ *       <CounterProvider>
+ *         <Counter title="Counter 1" />
+ *       </CounterProvider>
+ *       
+ *       <CounterProvider>
+ *         <Counter title="Counter 2" />
+ *       </CounterProvider>
+ *     </div>
+ *   );
+ * }
+ *
+ * // Each Counter has its own isolated state
+ * function Counter({ title }) {
+ *   const { count, increment } = useContextStore();
+ *   return <div>{title}: {count} <button onClick={increment}>+</button></div>;
+ * }
+ * ```
+ *
+ * @example
+ * With DevTools and store creation callback
+ * ```tsx
+ * const { Provider, useContextStore } = createStoreProvider<AppState>(
+ *   (set) => ({
+ *     // ... state
+ *   }),
+ *   'AppStore'
+ * );
+ *
+ * function App() {
+ *   return (
+ *     <Provider
+ *       enableDevtools={true}
+ *       devtoolsName="My App Store"
+ *       onStoreCreate={(store) => {
+ *         // Called once when store is created
+ *         console.log('Store initialized:', store.getState());
+ *         
+ *         // Register middleware
+ *         store.registerMiddleware('logger', loggerMiddleware);
+ *       }}
+ *     >
+ *       <MyApp />
+ *     </Provider>
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * Conditional rendering based on provider existence
+ * ```tsx
+ * const { Provider, useContextStore, useIsInsideProvider } = 
+ *   createStoreProvider<SettingsState>(..., 'Settings');
+ *
+ * function SettingsButton() {
+ *   const isInsideSettingsProvider = useIsInsideProvider();
+ *   
+ *   if (!isInsideSettingsProvider) {
+ *     return null; // Don't render if not inside provider
+ *   }
+ *   
+ *   return <button>Settings</button>;
+ * }
+ * ```
+ *
+ * @see {@link createShallowStore} for creating a global store
+ * @see {@link https://github.com/pmndrs/zustand | Zustand documentation}
+ *
+ * @public
+ * @since 0.6.0
  */
 export function createStoreProvider<
   TState,

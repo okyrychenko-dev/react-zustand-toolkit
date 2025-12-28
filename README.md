@@ -135,8 +135,9 @@ Creates a React Context provider for isolated store instances.
 **Returns:**
 
 - `Provider`: React component to wrap your app/subtree
-- `useContext()`: Hook to access store from context
-- `useContextStore()`: Hook to access store with selector
+- `useContext()`: Hook to access store from context (throws if outside provider)
+- `useContextStore()`: Hook to access store with selector (throws if outside provider)
+- `useOptionalContext()`: Hook to access store from context (returns null if outside provider)
 - `useIsInsideProvider()`: Check if inside provider
 
 ```typescript
