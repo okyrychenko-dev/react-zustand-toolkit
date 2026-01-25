@@ -55,7 +55,7 @@ import type { StoreApi, StoreMutators } from "zustand";
  *     count: state.count,
  *     increment: state.increment,
  *   }));
- *   
+ *
  *   return (
  *     <div>
  *       <p>Count: {count}</p>
@@ -89,7 +89,7 @@ import type { StoreApi, StoreMutators } from "zustand";
  * function Dashboard() {
  *   // Gets entire state with shallow comparison
  *   const state = useCounterStore();
- *   
+ *
  *   return (
  *     <div>
  *       <h1>{state.name}</h1>
@@ -107,16 +107,16 @@ import type { StoreApi, StoreMutators } from "zustand";
  *
  * function ExternalButton() {
  *   const storeApi = useStoreApi();
- *   
+ *
  *   const handleClick = () => {
  *     // Direct imperative access without hook
  *     const currentCount = storeApi.getState().count;
  *     console.log('Current count:', currentCount);
- *     
+ *
  *     // Directly mutate
  *     storeApi.setState({ count: currentCount + 10 });
  *   };
- *   
+ *
  *   return <button onClick={handleClick}>Add 10</button>;
  * }
  * ```

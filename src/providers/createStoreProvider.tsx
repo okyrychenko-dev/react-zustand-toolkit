@@ -57,7 +57,7 @@ function wrapForDevtools<
  *   removeTodo: (id: string) => void;
  * }
  *
- * const { Provider: TodoProvider, useContextStore: useTodoStore } = 
+ * const { Provider: TodoProvider, useContextStore: useTodoStore } =
  *   createStoreProvider<TodoState>(
  *     (set) => ({
  *       todos: [],
@@ -91,7 +91,7 @@ function wrapForDevtools<
  * @example
  * Multiple independent instances
  * ```tsx
- * const { Provider: CounterProvider, useContextStore } = 
+ * const { Provider: CounterProvider, useContextStore } =
  *   createStoreProvider<CounterState>(..., 'Counter');
  *
  * function App() {
@@ -100,7 +100,7 @@ function wrapForDevtools<
  *       <CounterProvider>
  *         <Counter title="Counter 1" />
  *       </CounterProvider>
- *       
+ *
  *       <CounterProvider>
  *         <Counter title="Counter 2" />
  *       </CounterProvider>
@@ -133,7 +133,7 @@ function wrapForDevtools<
  *       onStoreCreate={(store) => {
  *         // Called once when store is created
  *         console.log('Store initialized:', store.getState());
- *         
+ *
  *         // Register middleware
  *         store.registerMiddleware('logger', loggerMiddleware);
  *       }}
@@ -147,16 +147,16 @@ function wrapForDevtools<
  * @example
  * Conditional rendering based on provider existence
  * ```tsx
- * const { Provider, useContextStore, useIsInsideProvider } = 
+ * const { Provider, useContextStore, useIsInsideProvider } =
  *   createStoreProvider<SettingsState>(..., 'Settings');
  *
  * function SettingsButton() {
  *   const isInsideSettingsProvider = useIsInsideProvider();
- *   
+ *
  *   if (!isInsideSettingsProvider) {
  *     return null; // Don't render if not inside provider
  *   }
- *   
+ *
  *   return <button>Settings</button>;
  * }
  * ```

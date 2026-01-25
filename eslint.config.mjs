@@ -103,6 +103,7 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: ["error", "always"],
+      curly: ["error", "all"],
     },
   },
   {

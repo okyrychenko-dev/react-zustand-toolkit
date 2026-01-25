@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-25
+
+### Breaking Changes
+
+- ⚠️ **Updated minimum peer dependency versions**:
+  - React: `^18.0.0 || ^19.0.0` (removed React 17 support)
+  - Zustand: `^5.0.0` (removed Zustand 4.x support)
+
+### Changed
+
+- 🔧 **ESLint configuration**: Added `curly: ["error", "all"]` rule
+- 📝 Cleaned up trailing whitespace in JSDoc comments
+
 ## [0.1.2] - 2024-12-28
 
 ### Documentation
@@ -37,7 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/releases/tag/v0.1.0
