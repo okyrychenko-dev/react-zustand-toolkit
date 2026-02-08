@@ -36,9 +36,14 @@ export function createStoreToolkit<
   // Create a single shared provider that will be reused
   const sharedProvider = createStoreProvider<TState, TMutators>(storeCreator, storeName);
 
-  // Factory to create provider - returns the shared provider instance
-  function createProvider(): StoreProviderResult<TState> {
+  // Returns shared provider context/hooks for this toolkit instance
+  function getProvider(): StoreProviderResult<TState> {
     return sharedProvider;
+  }
+
+  // Backward-compatible alias
+  function createProvider(): StoreProviderResult<TState> {
+    return getProvider();
   }
 
   // Use the shared provider's hooks for resolution
@@ -58,6 +63,7 @@ export function createStoreToolkit<
   return {
     useStore,
     useStoreApi,
+    getProvider,
     createProvider,
     useResolvedStore,
     useResolvedStoreWithSelector,

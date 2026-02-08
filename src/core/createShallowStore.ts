@@ -1,7 +1,28 @@
+import { useMemo } from "react";
 import { createStore, useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
+import { shallow } from "zustand/shallow";
 import type { MutatorsStateCreator, ShallowStoreBindings } from "../types";
 import type { StoreApi, StoreMutators } from "zustand";
+
+function createSelectorWithEquality<TState, TSelected>(
+  selector: (state: TState) => TSelected,
+  equalityFn: (a: TSelected, b: TSelected) => boolean
+): (state: TState) => TSelected {
+  let hasPrev = false;
+  let prevValue: TSelected;
+
+  return (state: TState): TSelected => {
+    const nextValue = selector(state);
+
+    if (hasPrev && equalityFn(prevValue, nextValue)) {
+      return prevValue;
+    }
+
+    hasPrev = true;
+    prevValue = nextValue;
+    return nextValue;
+  };
+}
 
 /**
  * Creates a Zustand store with automatic shallow comparison for all selectors.
@@ -136,10 +157,22 @@ export function createShallowStore<
 
   function useShallowStore(): TState;
   function useShallowStore<T>(selector: (state: TState) => T): T;
-  function useShallowStore<T>(selector?: (state: TState) => T): T | TState {
-    const actualSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+  function useShallowStore<T>(
+    selector: (state: TState) => T,
+    equalityFn: (a: T, b: T) => boolean
+  ): T;
+  function useShallowStore<T>(
+    selector?: (state: TState) => T,
+    equalityFn?: (a: T | TState, b: T | TState) => boolean
+  ): T | TState {
+    const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
+    const actualEquality = equalityFn ?? defaultEquality;
+    const actualSelector = useMemo(() => {
+      const baseSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+      return createSelectorWithEquality(baseSelector, actualEquality);
+    }, [selector, actualEquality]);
 
-    return useStore(storeApi, useShallow(actualSelector));
+    return useStore(storeApi, actualSelector);
   }
 
   return {

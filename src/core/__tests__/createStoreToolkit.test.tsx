@@ -17,9 +17,19 @@ describe("createStoreToolkit", () => {
 
     expect(toolkit.useStore).toBeDefined();
     expect(toolkit.useStoreApi).toBeDefined();
+    expect(toolkit.getProvider).toBeDefined();
     expect(toolkit.createProvider).toBeDefined();
     expect(toolkit.useResolvedStore).toBeDefined();
     expect(toolkit.useResolvedStoreWithSelector).toBeDefined();
+  });
+
+  it("should return shared provider from getProvider and createProvider", () => {
+    const toolkit = createStoreToolkit<TestStore>((set) => ({
+      count: 0,
+      increment: () => set((state) => ({ count: state.count + 1 })),
+    }));
+
+    expect(toolkit.getProvider()).toBe(toolkit.createProvider());
   });
 
   it("should work with global store", () => {
@@ -102,5 +112,24 @@ describe("createStoreToolkit", () => {
     // Global changed, provider didn't
     expect(globalResult.current).toBe(1);
     expect(providerResult.current).toBe(0);
+  });
+
+  it("should support custom equality in resolved selector hook", () => {
+    const toolkit = createStoreToolkit<TestStore>((set) => ({
+      count: 0,
+      increment: () => set((state) => ({ count: state.count + 1 })),
+    }));
+
+    const { result } = renderHook(() =>
+      toolkit.useResolvedStoreWithSelector((state) => state.count, () => true)
+    );
+
+    expect(result.current).toBe(0);
+
+    act(() => {
+      toolkit.useStoreApi.getState().increment();
+    });
+
+    expect(result.current).toBe(0);
   });
 });

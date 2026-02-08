@@ -11,7 +11,7 @@ export interface ShallowStoreBindings<TState> {
    */
   useStore: {
     (): TState;
-    <T>(selector: (state: TState) => T): T;
+    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
   };
   /**
    * Direct access to store API for advanced usage
@@ -64,7 +64,7 @@ export interface StoreProviderResult<TState> {
    */
   useContextStore: {
     (): TState;
-    <T>(selector: (state: TState) => T): T;
+    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
   };
   /**
    * Check if component is inside provider
@@ -81,7 +81,12 @@ export interface StoreProviderResult<TState> {
  */
 export interface StoreToolkit<TState> extends ShallowStoreBindings<TState> {
   /**
-   * Create provider for isolated store instances
+   * Get shared provider for isolated store instances.
+   * Multiple calls return the same provider/context hooks.
+   */
+  getProvider: () => StoreProviderResult<TState>;
+  /**
+   * Backward-compatible alias for getProvider
    */
   createProvider: () => StoreProviderResult<TState>;
   /**
@@ -93,7 +98,7 @@ export interface StoreToolkit<TState> extends ShallowStoreBindings<TState> {
    */
   useResolvedStoreWithSelector: {
     (): TState;
-    <T>(selector: (state: TState) => T): T;
+    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
   };
 }
 

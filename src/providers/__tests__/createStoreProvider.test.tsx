@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createStoreProvider } from "../createStoreProvider";
 import type { PropsWithChildren } from "react";
@@ -204,5 +204,56 @@ describe("createStoreProvider", () => {
     expect(result.current).not.toBeNull();
     expect(result.current).toHaveProperty("getState");
     expect(result.current).toHaveProperty("setState");
+  });
+
+  it("should call onStoreCreate only once for rerenders", () => {
+    let calls = 0;
+
+    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+      value: 0,
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
+
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider
+        onStoreCreate={() => {
+          calls += 1;
+        }}
+      >
+        {children}
+      </Provider>
+    );
+
+    const { rerender } = renderHook(() => useContextStore((state) => state.value), { wrapper });
+
+    rerender();
+    rerender();
+
+    expect(calls).toBe(1);
+  });
+
+  it("should support custom equality for context selector hook", () => {
+    const { Provider, useContext, useContextStore } = createStoreProvider<TestStore>((set) => ({
+      value: 0,
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
+
+    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+
+    const { result } = renderHook(
+      () => ({
+        store: useContext(),
+        value: useContextStore((state) => state.value, () => true),
+      }),
+      { wrapper }
+    );
+
+    expect(result.current.value).toBe(0);
+
+    act(() => {
+      result.current.store.getState().increment();
+    });
+
+    expect(result.current.value).toBe(0);
   });
 });

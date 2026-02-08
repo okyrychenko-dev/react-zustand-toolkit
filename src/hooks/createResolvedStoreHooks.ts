@@ -1,6 +1,27 @@
+import { useMemo } from "react";
 import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
+import { shallow } from "zustand/shallow";
 import type { StoreApi } from "zustand";
+
+function createSelectorWithEquality<TState, TSelected>(
+  selector: (state: TState) => TSelected,
+  equalityFn: (a: TSelected, b: TSelected) => boolean
+): (state: TState) => TSelected {
+  let hasPrev = false;
+  let prevValue: TSelected;
+
+  return (state: TState): TSelected => {
+    const nextValue = selector(state);
+
+    if (hasPrev && equalityFn(prevValue, nextValue)) {
+      return prevValue;
+    }
+
+    hasPrev = true;
+    prevValue = nextValue;
+    return nextValue;
+  };
+}
 
 /**
  * Creates hooks that resolve between context store and global store
@@ -21,7 +42,7 @@ export function createResolvedStoreHooks<TState>(
   useResolvedStore: () => StoreApi<TState>;
   useResolvedStoreWithSelector: {
     (): TState;
-    <T>(selector: (state: TState) => T): T;
+    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
   };
 } {
   function useResolvedStore(): StoreApi<TState> {
@@ -30,12 +51,23 @@ export function createResolvedStoreHooks<TState>(
   }
 
   function useResolvedStoreWithSelector(): TState;
-  function useResolvedStoreWithSelector<T>(selector: (state: TState) => T): T;
-  function useResolvedStoreWithSelector<T>(selector?: (state: TState) => T): T | TState {
+  function useResolvedStoreWithSelector<T>(
+    selector: (state: TState) => T,
+    equalityFn?: (a: T, b: T) => boolean
+  ): T;
+  function useResolvedStoreWithSelector<T>(
+    selector?: (state: TState) => T,
+    equalityFn?: (a: T | TState, b: T | TState) => boolean
+  ): T | TState {
     const store = useResolvedStore();
-    const actualSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+    const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
+    const actualEquality = equalityFn ?? defaultEquality;
+    const actualSelector = useMemo(() => {
+      const baseSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+      return createSelectorWithEquality(baseSelector, actualEquality);
+    }, [selector, actualEquality]);
 
-    return useStore(store, useShallow(actualSelector));
+    return useStore(store, actualSelector);
   }
 
   return {

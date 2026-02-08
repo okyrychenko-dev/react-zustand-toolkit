@@ -92,4 +92,26 @@ describe("createShallowStore", () => {
     expect(countResult.current).toBe(0);
     expect(nameResult.current).toBe("test");
   });
+
+  it("should support custom equality function", () => {
+    const { useStore, useStoreApi } = createShallowStore<TestStore>((set) => ({
+      count: 0,
+      name: "test",
+      increment: () => set((state) => ({ count: state.count + 1 })),
+      setName: (name: string) => set({ name }),
+    }));
+
+    const { result } = renderHook(() =>
+      useStore((state) => state.count, () => true)
+    );
+
+    expect(result.current).toBe(0);
+
+    act(() => {
+      useStoreApi.getState().increment();
+    });
+
+    // custom equality always returns true, so selection remains stable
+    expect(result.current).toBe(0);
+  });
 });

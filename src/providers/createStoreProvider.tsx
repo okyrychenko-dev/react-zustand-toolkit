@@ -1,9 +1,29 @@
-import { type ReactNode, createContext, useContext, useRef } from "react";
+import { type ReactNode, createContext, useContext, useLayoutEffect, useMemo, useRef } from "react";
 import { createStore, useStore } from "zustand";
 import { devtools } from "zustand/middleware";
-import { useShallow } from "zustand/react/shallow";
+import { shallow } from "zustand/shallow";
 import type { MutatorsStateCreator, StoreProviderProps, StoreProviderResult } from "../types";
 import type { StateCreator, StoreApi, StoreMutators } from "zustand";
+
+function createSelectorWithEquality<TState, TSelected>(
+  selector: (state: TState) => TSelected,
+  equalityFn: (a: TSelected, b: TSelected) => boolean
+): (state: TState) => TSelected {
+  let hasPrev = false;
+  let prevValue: TSelected;
+
+  return (state: TState): TSelected => {
+    const nextValue = selector(state);
+
+    if (hasPrev && equalityFn(prevValue, nextValue)) {
+      return prevValue;
+    }
+
+    hasPrev = true;
+    prevValue = nextValue;
+    return nextValue;
+  };
+}
 
 type DevtoolsStateCreator<
   TState,
@@ -184,6 +204,7 @@ export function createStoreProvider<
     onStoreCreate,
   }: StoreProviderProps<TState>): ReactNode {
     const storeRef = useRef<StoreApi<TState> | null>(null);
+    const isInitializedRef = useRef(false);
 
     if (!storeRef.current) {
       const newStore = enableDevtools
@@ -195,14 +216,17 @@ export function createStoreProvider<
           )
         : createStore<TState, TMutators>(storeCreator);
 
-      // Call onStoreCreate synchronously during first render
-      // This ensures any setup (like middleware registration) happens before children render
-      onStoreCreate?.(newStore);
-
       storeRef.current = newStore;
     }
 
     const store = storeRef.current;
+
+    useLayoutEffect(() => {
+      if (!isInitializedRef.current && onStoreCreate) {
+        onStoreCreate(store);
+        isInitializedRef.current = true;
+      }
+    }, [onStoreCreate, store]);
 
     return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
   }
@@ -228,11 +252,23 @@ export function createStoreProvider<
 
   function useContextStoreWithSelector(): TState;
   function useContextStoreWithSelector<T>(selector: (state: TState) => T): T;
-  function useContextStoreWithSelector<T>(selector?: (state: TState) => T): T | TState {
+  function useContextStoreWithSelector<T>(
+    selector: (state: TState) => T,
+    equalityFn: (a: T, b: T) => boolean
+  ): T;
+  function useContextStoreWithSelector<T>(
+    selector?: (state: TState) => T,
+    equalityFn?: (a: T | TState, b: T | TState) => boolean
+  ): T | TState {
     const store = useStoreContext();
-    const actualSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+    const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
+    const actualEquality = equalityFn ?? defaultEquality;
+    const actualSelector = useMemo(() => {
+      const baseSelector = (state: TState): T | TState => (selector ? selector(state) : state);
+      return createSelectorWithEquality(baseSelector, actualEquality);
+    }, [selector, actualEquality]);
 
-    return useStore(store, useShallow(actualSelector));
+    return useStore(store, actualSelector);
   }
 
   return {
