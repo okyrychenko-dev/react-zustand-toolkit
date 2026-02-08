@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- React 19 helper utilities:
+  - `createTransitionAction` for transition-wrapped store actions
+  - `useActionStateAdapter` for action-state integration patterns
+  - `useOptimisticReducer` for optimistic UI flows
+- Custom selector equality support for:
+  - `useStore`
+  - `useContextStore`
+  - `useResolvedStoreWithSelector`
+- New `getProvider()` API in toolkit as explicit shared-provider accessor
+
+### Changed
+
+- `createProvider()` is now documented as a backward-compatible alias to `getProvider()`
+- `README.md` updated with React 19 usage patterns and custom equality examples
+
+### Fixed
+
+- Moved provider `onStoreCreate` initialization out of render-phase into effect lifecycle
+
 ## [0.2.0] - 2026-01-25
 
 ### Breaking Changes

@@ -11,10 +11,12 @@
 - **Automatic Shallow Comparison**: Built-in shallow equality checks for all selectors
 - **Provider Pattern**: Create isolated store instances for SSR, testing, and micro-frontends
 - **Smart Resolution**: Hooks that automatically resolve between global and context stores
+- **Custom Equality**: Optional custom equality function for selectors
 - **Type-Safe**: Full TypeScript support with comprehensive type inference
 - **Zero Configuration**: Works out of the box with sensible defaults
 - **DevTools Integration**: Redux DevTools support for debugging
 - **Middleware Support**: Compatible with all Zustand middleware
+- **React 19 Helpers**: Utilities for transitions, optimistic UI, and action state
 
 ## Installation
 
@@ -53,7 +55,7 @@ export const { useStore: useCounter, useResolvedStoreWithSelector: useCounterRes
   counterToolkit;
 
 // Create provider
-export const { Provider: CounterProvider } = counterToolkit.createProvider();
+export const { Provider: CounterProvider } = counterToolkit.getProvider();
 ```
 
 ### Use in Components
@@ -100,7 +102,8 @@ Creates a complete toolkit with global store, provider factory, and resolution h
 
 - `useStore`: Hook for global store with shallow comparison
 - `useStoreApi`: Direct access to store API
-- `createProvider()`: Factory to create provider
+- `getProvider()`: Returns shared provider/context hooks for this toolkit instance
+- `createProvider()`: Backward-compatible alias for `getProvider()`
 - `useResolvedStore()`: Returns store API (context or global)
 - `useResolvedStoreWithSelector()`: Smart hook with selector support
 
@@ -121,6 +124,9 @@ Creates a Zustand store with automatic shallow comparison.
 const { useStore, useStoreApi } = createShallowStore<MyStore>((set) => ({
   // your store implementation
 }));
+
+// Optional custom equality function
+const selected = useStore((state) => state.data, (a, b) => a.id === b.id);
 ```
 
 ### `createStoreProvider<TState>(storeCreator, contextName?)`
@@ -189,7 +195,7 @@ const toolkit = createStoreToolkit<MyStore>((set) => ({
 }));
 
 export const { useResolvedStoreWithSelector: useMyStore } = toolkit;
-export const { Provider: MyStoreProvider } = toolkit.createProvider();
+export const { Provider: MyStoreProvider } = toolkit.getProvider();
 
 // Works without provider (uses global store)
 const data = useMyStore((state) => state.data);
@@ -214,6 +220,33 @@ const { useStore } = createShallowStore<MyStore, [["zustand/devtools", never]]>(
     { name: "MyStore" }
   )
 );
+```
+
+### Pattern 5: React 19 Helpers
+
+```typescript
+import {
+  createTransitionAction,
+  useActionStateAdapter,
+  useOptimisticReducer,
+} from "@okyrychenko-dev/react-zustand-toolkit";
+
+// Wrap store action in transition
+const incrementInTransition = createTransitionAction(() => {
+  store.getState().increment();
+});
+
+// useActionState adapter
+const [status, submit, isPending] = useActionStateAdapter(async (payload: FormData) => {
+  await save(payload);
+  return "saved";
+}, "idle");
+
+// optimistic local state
+const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(todos, (current, nextTodo) => [
+  ...current,
+  nextTodo,
+]);
 ```
 
 ## Use Cases
