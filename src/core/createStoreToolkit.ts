@@ -2,14 +2,14 @@ import { createResolvedStoreHooks } from "../hooks/createResolvedStoreHooks";
 import { createStoreProvider } from "../providers/createStoreProvider";
 import { createShallowStore } from "./createShallowStore";
 import type { MutatorsStateCreator, StoreProviderResult, StoreToolkit } from "../types";
-import type { StoreApi, StoreMutators } from "zustand";
+import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
 
 /**
  * Creates a complete Zustand store toolkit with global store, provider, and resolution hooks
  *
  * This is the all-in-one solution that combines:
  * - Global singleton store with shallow comparison
- * - Provider factory for isolated instances
+ * - Shared provider toolkit for isolated instances
  * - Smart hooks that resolve between global and context stores
  *
  * @template TState - The shape of your store state
@@ -19,53 +19,57 @@ import type { StoreApi, StoreMutators } from "zustand";
  * @param options.name - Name for the store (used in DevTools and Provider)
  * @returns Complete toolkit with all hooks and utilities
  */
-export function createStoreToolkit<
-  TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]> = [],
->(
+export function createStoreToolkit<TState, TMutators extends Array<StoreMutatorTuple> = []>(
   storeCreator: MutatorsStateCreator<TState, TMutators>,
   options: {
     name?: string;
   } = {}
-): StoreToolkit<TState> {
+): StoreToolkit<TState, TMutators> {
   const storeName = options.name ?? "Store";
 
   // Create global singleton store
-  const { useStore, useStoreApi } = createShallowStore<TState, TMutators>(storeCreator);
+  const { useStore, useStorePlain, useStoreApi } = createShallowStore<TState, TMutators>(
+    storeCreator
+  );
 
   // Create a single shared provider that will be reused
-  const sharedProvider = createStoreProvider<TState, TMutators>(storeCreator, storeName);
+  const provider = createStoreProvider<TState, TMutators>(storeCreator, storeName);
 
   // Returns shared provider context/hooks for this toolkit instance
-  function getProvider(): StoreProviderResult<TState> {
-    return sharedProvider;
+  function getProvider(): StoreProviderResult<TState, TMutators> {
+    return provider;
   }
 
   // Backward-compatible alias
-  function createProvider(): StoreProviderResult<TState> {
+  function createProvider(): StoreProviderResult<TState, TMutators> {
     return getProvider();
   }
 
   // Use the shared provider's hooks for resolution
-  const { useOptionalContext } = sharedProvider;
+  const { useContextStoreOptional } = provider;
 
   // Helper to safely get context store (returns null if outside provider)
-  function useSafeContextStore(): StoreApi<TState> | null {
-    return useOptionalContext();
+  function useSafeContextStore(): StoreApiWithMutators<TState, TMutators> | null {
+    return useContextStoreOptional();
   }
 
   // Create resolution hooks
-  const { useResolvedStore, useResolvedStoreWithSelector } = createResolvedStoreHooks(
+  const { useResolvedStoreApi, useResolvedValue, useResolvedStorePlain } = createResolvedStoreHooks(
     useStoreApi,
     useSafeContextStore
   );
 
   return {
     useStore,
+    useStorePlain,
     useStoreApi,
+    provider,
     getProvider,
     createProvider,
-    useResolvedStore,
-    useResolvedStoreWithSelector,
+    useResolvedStoreApi,
+    useResolvedStore: useResolvedStoreApi,
+    useResolvedValue,
+    useResolvedStoreWithSelector: useResolvedValue,
+    useResolvedStorePlain,
   };
 }

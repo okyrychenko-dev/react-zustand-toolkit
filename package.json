@@ -1,6 +1,6 @@
 {
   "name": "@okyrychenko-dev/react-zustand-toolkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "A powerful toolkit for creating type-safe Zustand stores with automatic shallow comparison, provider patterns, and smart context resolution",
   "main": "./dist/index.js",
@@ -27,8 +27,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "format": "npm run lint:fix && prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "npm run lint && prettier --check \"src/**/*.{ts,tsx}\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

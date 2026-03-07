@@ -51,11 +51,10 @@ const counterToolkit = createStoreToolkit<CounterStore>(
 );
 
 // Export hooks
-export const { useStore: useCounter, useResolvedStoreWithSelector: useCounterResolved } =
-  counterToolkit;
+export const { useStore: useCounter, useResolvedValue: useCounterResolved } = counterToolkit;
 
-// Create provider
-export const { Provider: CounterProvider } = counterToolkit.getProvider();
+// Shared provider toolkit
+export const { Provider: CounterProvider } = counterToolkit.provider;
 ```
 
 ### Use in Components
@@ -91,7 +90,7 @@ function App() {
 
 ### `createStoreToolkit<TState>(storeCreator, options?)`
 
-Creates a complete toolkit with global store, provider factory, and resolution hooks.
+Creates a complete toolkit with global store bindings, a shared provider toolkit, and resolved hooks.
 
 **Parameters:**
 
@@ -101,11 +100,14 @@ Creates a complete toolkit with global store, provider factory, and resolution h
 **Returns:**
 
 - `useStore`: Hook for global store with shallow comparison
+- `useStorePlain`: Hook for global store with plain Zustand selector semantics
 - `useStoreApi`: Direct access to store API
-- `getProvider()`: Returns shared provider/context hooks for this toolkit instance
+- `provider`: Shared provider/context hooks for this toolkit instance
+- `getProvider()`: Getter alias for the shared provider
 - `createProvider()`: Backward-compatible alias for `getProvider()`
-- `useResolvedStore()`: Returns store API (context or global)
-- `useResolvedStoreWithSelector()`: Smart hook with selector support
+- `useResolvedStoreApi()`: Returns store API (context or global)
+- `useResolvedValue()`: Resolved selector hook with shallow comparison
+- `useResolvedStorePlain()`: Resolved selector hook with plain Zustand semantics
 
 ### `createShallowStore<TState>(storeCreator)`
 
@@ -118,6 +120,7 @@ Creates a Zustand store with automatic shallow comparison.
 **Returns:**
 
 - `useStore`: Hook with shallow comparison
+- `useStorePlain`: Hook with plain Zustand selector semantics
 - `useStoreApi`: Direct access to store API
 
 ```typescript
@@ -141,9 +144,10 @@ Creates a React Context provider for isolated store instances.
 **Returns:**
 
 - `Provider`: React component to wrap your app/subtree
-- `useContext()`: Hook to access store from context (throws if outside provider)
+- `useContextStoreApi()`: Hook to access store from context (throws if outside provider)
 - `useContextStore()`: Hook to access store with selector (throws if outside provider)
-- `useOptionalContext()`: Hook to access store from context (returns null if outside provider)
+- `useContextStorePlain()`: Hook with plain Zustand selector semantics
+- `useContextStoreOptional()`: Hook to access store from context (returns null if outside provider)
 - `useIsInsideProvider()`: Check if inside provider
 
 ```typescript
@@ -194,8 +198,8 @@ const toolkit = createStoreToolkit<MyStore>((set) => ({
   // implementation
 }));
 
-export const { useResolvedStoreWithSelector: useMyStore } = toolkit;
-export const { Provider: MyStoreProvider } = toolkit.getProvider();
+export const { useResolvedValue: useMyStore } = toolkit;
+export const { Provider: MyStoreProvider } = toolkit.provider;
 
 // Works without provider (uses global store)
 const data = useMyStore((state) => state.data);
@@ -297,9 +301,9 @@ Each micro-frontend gets its own isolated state:
 </MyStoreProvider>
 ```
 
-### Store Initialization with onStoreCreate
+### Store Lifecycle with onStoreInit / onStoreReady
 
-Use `onStoreCreate` callback to initialize store after creation (e.g., register middlewares):
+Use `onStoreInit` for pure synchronous initialization and `onStoreReady` for post-commit side effects:
 
 ```typescript
 interface AppStore {
@@ -311,15 +315,122 @@ const { Provider } = createStoreProvider<AppStore>((set) => ({
   // ... implementation
 }));
 
-// Initialize store with middlewares
 <Provider
-  onStoreCreate={(store) => {
-    store.getState().registerMiddleware('logger', loggerMiddleware);
-    store.getState().registerMiddleware('analytics', analyticsMiddleware);
+  onStoreInit={(store) => {
+    store.getState().registerMiddleware("logger", loggerMiddleware);
+  }}
+  onStoreReady={(store) => {
+    console.log("store ready", store.getState());
   }}
 >
   <App />
 </Provider>
+```
+
+## Advanced API Matrix
+
+- Global: `useStore`, `useStorePlain`, `useStoreApi`
+- Provider: `useContextStore`, `useContextStorePlain`, `useContextStoreApi`, `useContextStoreOptional`
+- Resolved: `useResolvedValue`, `useResolvedStorePlain`, `useResolvedStoreApi`
+
+Deprecated aliases remain available for migration:
+
+- `createProvider()` -> `getProvider()` / `provider`
+- `useContext()` -> `useContextStoreApi()`
+- `useOptionalContext()` -> `useContextStoreOptional()`
+- `useResolvedStoreWithSelector()` -> `useResolvedValue()`
+- `useResolvedStore()` -> `useResolvedStoreApi()`
+- `onStoreCreate` -> `onStoreInit()` for pure synchronous initialization, or `onStoreReady()` for post-commit side effects
+
+## Migration
+
+Deprecated APIs remain available for now, but new code should use the updated names and lifecycle hooks.
+
+### Provider access
+
+Old:
+
+```typescript
+const { Provider } = toolkit.createProvider();
+// or
+const { Provider } = toolkit.getProvider();
+```
+
+New:
+
+```typescript
+const { Provider } = toolkit.provider;
+```
+
+### Provider lifecycle
+
+Old:
+
+```tsx
+<Provider
+  onStoreCreate={(store) => {
+    console.log("ready", store.getState());
+  }}
+>
+  <App />
+</Provider>
+```
+
+New:
+
+```tsx
+<Provider
+  onStoreInit={(store) => {
+    // Pure, synchronous, idempotent initialization only
+  }}
+  onStoreReady={(store) => {
+    console.log("ready", store.getState());
+  }}
+>
+  <App />
+</Provider>
+```
+
+### Provider raw API hooks
+
+Old:
+
+```typescript
+const store = useContext();
+const maybeStore = useOptionalContext();
+```
+
+New:
+
+```typescript
+const store = useContextStoreApi();
+const maybeStore = useContextStoreOptional();
+```
+
+### Resolved hooks
+
+Old:
+
+```typescript
+const count = useResolvedStoreWithSelector((state) => state.count);
+const store = useResolvedStore();
+```
+
+New:
+
+```typescript
+const count = useResolvedValue((state) => state.count);
+const store = useResolvedStoreApi();
+```
+
+### Plain selector mode
+
+If you need plain Zustand selector semantics instead of the shallow-default path, use the explicit plain hooks:
+
+```typescript
+const value = useStorePlain((state) => state.value);
+const contextValue = useContextStorePlain((state) => state.value);
+const resolvedValue = useResolvedStorePlain((state) => state.value);
 ```
 
 ## TypeScript

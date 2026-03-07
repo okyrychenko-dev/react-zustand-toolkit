@@ -4,9 +4,7 @@ import { useActionStateAdapter } from "../useActionStateAdapter";
 
 describe("useActionStateAdapter", () => {
   it("should update state after action dispatch", async () => {
-    const { result } = renderHook(() =>
-      useActionStateAdapter((payload: number) => payload * 2, 0)
-    );
+    const { result } = renderHook(() => useActionStateAdapter((payload: number) => payload * 2, 0));
 
     expect(result.current[0]).toBe(0);
 

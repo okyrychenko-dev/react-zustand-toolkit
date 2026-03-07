@@ -1,27 +1,8 @@
 import { useMemo } from "react";
 import { useStore } from "zustand";
 import { shallow } from "zustand/shallow";
-import type { StoreApi } from "zustand";
-
-function createSelectorWithEquality<TState, TSelected>(
-  selector: (state: TState) => TSelected,
-  equalityFn: (a: TSelected, b: TSelected) => boolean
-): (state: TState) => TSelected {
-  let hasPrev = false;
-  let prevValue: TSelected;
-
-  return (state: TState): TSelected => {
-    const nextValue = selector(state);
-
-    if (hasPrev && equalityFn(prevValue, nextValue)) {
-      return prevValue;
-    }
-
-    hasPrev = true;
-    prevValue = nextValue;
-    return nextValue;
-  };
-}
+import { createSelectorWithEquality } from "../shared";
+import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
 
 /**
  * Creates hooks that resolve between context store and global store
@@ -35,31 +16,40 @@ function createSelectorWithEquality<TState, TSelected>(
  * @param useContextStore - Hook that returns store from context (or null if outside provider)
  * @returns Hooks for resolved store access
  */
-export function createResolvedStoreHooks<TState>(
-  globalStoreApi: StoreApi<TState>,
-  useContextStore: () => StoreApi<TState> | null
+export function createResolvedStoreHooks<TState, TMutators extends Array<StoreMutatorTuple> = []>(
+  globalStoreApi: StoreApiWithMutators<TState, TMutators>,
+  useContextStore: () => StoreApiWithMutators<TState, TMutators> | null
 ): {
-  useResolvedStore: () => StoreApi<TState>;
+  useResolvedStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  useResolvedStore: () => StoreApiWithMutators<TState, TMutators>;
+  useResolvedValue: {
+    (): TState;
+    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
+  };
   useResolvedStoreWithSelector: {
     (): TState;
     <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
   };
+  useResolvedStorePlain: {
+    (): TState;
+    <T>(selector: (state: TState) => T): T;
+  };
 } {
-  function useResolvedStore(): StoreApi<TState> {
+  function useResolvedStoreApi(): StoreApiWithMutators<TState, TMutators> {
     const contextStore = useContextStore();
     return contextStore ?? globalStoreApi;
   }
 
-  function useResolvedStoreWithSelector(): TState;
-  function useResolvedStoreWithSelector<T>(
+  function useResolvedValue(): TState;
+  function useResolvedValue<T>(
     selector: (state: TState) => T,
     equalityFn?: (a: T, b: T) => boolean
   ): T;
-  function useResolvedStoreWithSelector<T>(
+  function useResolvedValue<T>(
     selector?: (state: TState) => T,
     equalityFn?: (a: T | TState, b: T | TState) => boolean
   ): T | TState {
-    const store = useResolvedStore();
+    const store = useResolvedStoreApi();
     const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
     const actualEquality = equalityFn ?? defaultEquality;
     const actualSelector = useMemo(() => {
@@ -70,8 +60,19 @@ export function createResolvedStoreHooks<TState>(
     return useStore(store, actualSelector);
   }
 
+  function useResolvedStorePlain(): TState;
+  function useResolvedStorePlain<T>(selector: (state: TState) => T): T;
+  function useResolvedStorePlain<T>(selector?: (state: TState) => T): T | TState {
+    const store = useResolvedStoreApi();
+    const actualSelector = selector ?? ((state: TState) => state);
+    return useStore<typeof store, T | TState>(store, actualSelector);
+  }
+
   return {
-    useResolvedStore,
-    useResolvedStoreWithSelector,
+    useResolvedStoreApi,
+    useResolvedStore: useResolvedStoreApi,
+    useResolvedValue,
+    useResolvedStoreWithSelector: useResolvedValue,
+    useResolvedStorePlain,
   };
 }

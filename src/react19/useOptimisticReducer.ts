@@ -18,6 +18,9 @@ export function useOptimisticReducer<TState, TInput>(
     [dispatchOptimistic]
   );
 
-  const result: readonly [TState, (input: TInput) => void] = [optimisticState, dispatchInTransition];
+  const result: readonly [TState, (input: TInput) => void] = [
+    optimisticState,
+    dispatchInTransition,
+  ];
   return result;
 }

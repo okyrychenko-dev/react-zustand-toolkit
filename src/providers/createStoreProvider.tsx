@@ -1,39 +1,34 @@
-import { type ReactNode, createContext, useContext, useLayoutEffect, useMemo, useRef } from "react";
+import { type ReactNode, createContext, useContext, useEffect, useMemo, useRef } from "react";
 import { createStore, useStore } from "zustand";
 import { devtools } from "zustand/middleware";
 import { shallow } from "zustand/shallow";
-import type { MutatorsStateCreator, StoreProviderProps, StoreProviderResult } from "../types";
-import type { StateCreator, StoreApi, StoreMutators } from "zustand";
+import { createSelectorWithEquality } from "../shared";
+import type {
+  MutatorsStateCreator,
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+  StoreProviderProps,
+  StoreProviderResult,
+} from "../types";
+import type { StateCreator } from "zustand";
 
-function createSelectorWithEquality<TState, TSelected>(
-  selector: (state: TState) => TSelected,
-  equalityFn: (a: TSelected, b: TSelected) => boolean
-): (state: TState) => TSelected {
-  let hasPrev = false;
-  let prevValue: TSelected;
+type ProviderRuntimeProps<TState, TMutators extends Array<StoreMutatorTuple>> = Omit<
+  StoreProviderProps<TState, TMutators>,
+  "onStoreCreate"
+> & {
+  onStoreCreate?: (store: StoreApiWithMutators<TState, TMutators>) => void;
+};
 
-  return (state: TState): TSelected => {
-    const nextValue = selector(state);
-
-    if (hasPrev && equalityFn(prevValue, nextValue)) {
-      return prevValue;
-    }
-
-    hasPrev = true;
-    prevValue = nextValue;
-    return nextValue;
-  };
-}
-
-type DevtoolsStateCreator<
+type DevtoolsStateCreator<TState, TMutators extends Array<StoreMutatorTuple>> = StateCreator<
   TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]>,
-> = StateCreator<TState, [["zustand/devtools", never]], TMutators, TState>;
+  [["zustand/devtools", never]],
+  TMutators,
+  TState
+>;
 
-function wrapForDevtools<
-  TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]>,
->(creator: MutatorsStateCreator<TState, TMutators>): DevtoolsStateCreator<TState, TMutators> {
+function wrapForDevtools<TState, TMutators extends Array<StoreMutatorTuple>>(
+  creator: MutatorsStateCreator<TState, TMutators>
+): DevtoolsStateCreator<TState, TMutators> {
   return (set, get, api) => creator(set, get, api);
 }
 
@@ -52,10 +47,11 @@ function wrapForDevtools<
  *
  * Returns an object with:
  * - `Provider`: React component to wrap your app
- * - `useContext`: Hook to get the store API
+ * - `useContextStoreApi`: Hook to get the store API
  * - `useContextStore`: Hook to select values from store (with shallow comparison)
+ * - `useContextStorePlain`: Hook to select values with plain Zustand semantics
  * - `useIsInsideProvider`: Hook to check if inside provider
- * - `useOptionalContext`: Hook that returns null if outside provider
+ * - `useContextStoreOptional`: Hook that returns null if outside provider
  *
  * @template TState - The shape of your store state and actions
  * @template TMutators - Array of mutators (middleware) applied to the store (default: [])
@@ -136,7 +132,7 @@ function wrapForDevtools<
  * ```
  *
  * @example
- * With DevTools and store creation callback
+ * With DevTools and lifecycle hooks
  * ```tsx
  * const { Provider, useContextStore } = createStoreProvider<AppState>(
  *   (set) => ({
@@ -150,12 +146,13 @@ function wrapForDevtools<
  *     <Provider
  *       enableDevtools={true}
  *       devtoolsName="My App Store"
- *       onStoreCreate={(store) => {
- *         // Called once when store is created
+ *       onStoreInit={(store) => {
+ *         // Called once when the store instance is created
+ *         store.setState({ ready: true });
+ *       }}
+ *       onStoreReady={(store) => {
+ *         // Called after the provider commits
  *         console.log('Store initialized:', store.getState());
- *
- *         // Register middleware
- *         store.registerMiddleware('logger', loggerMiddleware);
  *       }}
  *     >
  *       <MyApp />
@@ -187,51 +184,60 @@ function wrapForDevtools<
  * @public
  * @since 0.6.0
  */
-export function createStoreProvider<
-  TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]> = [],
->(
+export function createStoreProvider<TState, TMutators extends Array<StoreMutatorTuple> = []>(
   storeCreator: MutatorsStateCreator<TState, TMutators>,
   contextName = "Store"
-): StoreProviderResult<TState> {
-  const StoreContext = createContext<StoreApi<TState> | null>(null);
+): StoreProviderResult<TState, TMutators> {
+  const StoreContext = createContext<StoreApiWithMutators<TState, TMutators> | null>(null);
   StoreContext.displayName = `${contextName}Context`;
 
   function Provider({
     children,
     enableDevtools = process.env.NODE_ENV === "development",
     devtoolsName = contextName,
+    onStoreInit,
+    onStoreReady,
     onStoreCreate,
-  }: StoreProviderProps<TState>): ReactNode {
-    const storeRef = useRef<StoreApi<TState> | null>(null);
-    const isInitializedRef = useRef(false);
+  }: ProviderRuntimeProps<TState, TMutators>): ReactNode {
+    const storeRef = useRef<StoreApiWithMutators<TState, TMutators> | null>(null);
+    const isReadyRef = useRef(false);
 
     if (!storeRef.current) {
-      const newStore = enableDevtools
-        ? createStore(
-            devtools(wrapForDevtools(storeCreator), {
-              name: devtoolsName,
-              enabled: enableDevtools,
-            })
-          )
-        : createStore<TState, TMutators>(storeCreator);
+      const newStore = createStore<TState, TMutators>(storeCreator);
 
+      if (enableDevtools) {
+        const devtoolsStore = createStore(
+          devtools(wrapForDevtools(storeCreator), {
+            name: devtoolsName,
+            enabled: enableDevtools,
+          })
+        );
+
+        newStore.setState = devtoolsStore.setState;
+        newStore.getState = devtoolsStore.getState;
+        newStore.getInitialState = devtoolsStore.getInitialState;
+        newStore.subscribe = devtoolsStore.subscribe;
+      }
+
+      onStoreInit?.(newStore);
       storeRef.current = newStore;
     }
 
     const store = storeRef.current;
 
-    useLayoutEffect(() => {
-      if (!isInitializedRef.current && onStoreCreate) {
-        onStoreCreate(store);
-        isInitializedRef.current = true;
+    useEffect(() => {
+      const readyCallback = onStoreReady ?? onStoreCreate;
+
+      if (!isReadyRef.current && readyCallback) {
+        readyCallback(store);
+        isReadyRef.current = true;
       }
-    }, [onStoreCreate, store]);
+    }, [onStoreCreate, onStoreReady, store]);
 
     return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
   }
 
-  function useStoreContext(): StoreApi<TState> {
+  function useStoreContext(): StoreApiWithMutators<TState, TMutators> {
     const store = useContext(StoreContext);
 
     if (store === null) {
@@ -246,7 +252,7 @@ export function createStoreProvider<
     return store !== null;
   }
 
-  function useOptionalContext(): StoreApi<TState> | null {
+  function useContextStoreOptional(): StoreApiWithMutators<TState, TMutators> | null {
     return useContext(StoreContext);
   }
 
@@ -271,11 +277,22 @@ export function createStoreProvider<
     return useStore(store, actualSelector);
   }
 
+  function useContextStorePlain(): TState;
+  function useContextStorePlain<T>(selector: (state: TState) => T): T;
+  function useContextStorePlain<T>(selector?: (state: TState) => T): T | TState {
+    const store = useStoreContext();
+    const actualSelector = selector ?? ((state: TState) => state);
+    return useStore<typeof store, T | TState>(store, actualSelector);
+  }
+
   return {
     Provider,
+    useContextStoreApi: useStoreContext,
     useContext: useStoreContext,
     useContextStore: useContextStoreWithSelector,
+    useContextStorePlain,
     useIsInsideProvider,
-    useOptionalContext,
+    useContextStoreOptional,
+    useOptionalContext: useContextStoreOptional,
   };
 }

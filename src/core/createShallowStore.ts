@@ -1,28 +1,13 @@
 import { useMemo } from "react";
 import { createStore, useStore } from "zustand";
 import { shallow } from "zustand/shallow";
-import type { MutatorsStateCreator, ShallowStoreBindings } from "../types";
-import type { StoreApi, StoreMutators } from "zustand";
-
-function createSelectorWithEquality<TState, TSelected>(
-  selector: (state: TState) => TSelected,
-  equalityFn: (a: TSelected, b: TSelected) => boolean
-): (state: TState) => TSelected {
-  let hasPrev = false;
-  let prevValue: TSelected;
-
-  return (state: TState): TSelected => {
-    const nextValue = selector(state);
-
-    if (hasPrev && equalityFn(prevValue, nextValue)) {
-      return prevValue;
-    }
-
-    hasPrev = true;
-    prevValue = nextValue;
-    return nextValue;
-  };
-}
+import { createSelectorWithEquality } from "../shared";
+import type {
+  MutatorsStateCreator,
+  ShallowStoreBindings,
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+} from "../types";
 
 /**
  * Creates a Zustand store with automatic shallow comparison for all selectors.
@@ -47,6 +32,7 @@ function createSelectorWithEquality<TState, TSelected>(
  *
  * @returns Object with two properties:
  *          - `useStore`: Hook to access store with shallow comparison
+ *          - `useStorePlain`: Hook with plain Zustand selector semantics
  *          - `useStoreApi`: Direct access to the store API for imperative usage
  *
  * @example
@@ -149,11 +135,12 @@ function createSelectorWithEquality<TState, TSelected>(
  * @public
  * @since 0.6.0
  */
-export function createShallowStore<
-  TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]> = [],
->(storeCreator: MutatorsStateCreator<TState, TMutators>): ShallowStoreBindings<TState> {
-  const storeApi: StoreApi<TState> = createStore<TState, TMutators>(storeCreator);
+export function createShallowStore<TState, TMutators extends Array<StoreMutatorTuple> = []>(
+  storeCreator: MutatorsStateCreator<TState, TMutators>
+): ShallowStoreBindings<TState, TMutators> {
+  const storeApi: StoreApiWithMutators<TState, TMutators> = createStore<TState, TMutators>(
+    storeCreator
+  );
 
   function useShallowStore(): TState;
   function useShallowStore<T>(selector: (state: TState) => T): T;
@@ -175,8 +162,16 @@ export function createShallowStore<
     return useStore(storeApi, actualSelector);
   }
 
+  function useStorePlain(): TState;
+  function useStorePlain<T>(selector: (state: TState) => T): T;
+  function useStorePlain<T>(selector?: (state: TState) => T): T | TState {
+    const actualSelector = selector ?? ((state: TState) => state);
+    return useStore<typeof storeApi, T | TState>(storeApi, actualSelector);
+  }
+
   return {
     useStore: useShallowStore,
+    useStorePlain,
     useStoreApi: storeApi,
   };
 }

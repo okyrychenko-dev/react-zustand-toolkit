@@ -37,6 +37,19 @@ describe("createShallowStore", () => {
     expect(result.current).toBe(0);
   });
 
+  it("should expose plain selector access", () => {
+    const { useStorePlain } = createShallowStore<TestStore>((set) => ({
+      count: 0,
+      name: "test",
+      increment: () => set((state) => ({ count: state.count + 1 })),
+      setName: (name: string) => set({ name }),
+    }));
+
+    const { result } = renderHook(() => useStorePlain((state) => state.name));
+
+    expect(result.current).toBe("test");
+  });
+
   it("should update state correctly", () => {
     const { useStore, useStoreApi } = createShallowStore<TestStore>((set) => ({
       count: 0,
@@ -102,7 +115,10 @@ describe("createShallowStore", () => {
     }));
 
     const { result } = renderHook(() =>
-      useStore((state) => state.count, () => true)
+      useStore(
+        (state) => state.count,
+        () => true
+      )
     );
 
     expect(result.current).toBe(0);
@@ -113,5 +129,34 @@ describe("createShallowStore", () => {
 
     // custom equality always returns true, so selection remains stable
     expect(result.current).toBe(0);
+  });
+
+  it("should keep shallow mode and plain mode behavior distinct", () => {
+    const { useStore, useStorePlain, useStoreApi } = createShallowStore<TestStore>((set) => ({
+      count: 0,
+      name: "test",
+      increment: () => set((state) => ({ count: state.count + 1 })),
+      setName: (name: string) => set({ name }),
+    }));
+
+    let shallowRenders = 0;
+    let plainRenders = 0;
+
+    renderHook(() => {
+      shallowRenders += 1;
+      return useStore((state) => ({ count: state.count }));
+    });
+
+    renderHook(() => {
+      plainRenders += 1;
+      return useStorePlain();
+    });
+
+    act(() => {
+      useStoreApi.getState().setName("updated");
+    });
+
+    expect(shallowRenders).toBe(1);
+    expect(plainRenders).toBe(2);
   });
 });

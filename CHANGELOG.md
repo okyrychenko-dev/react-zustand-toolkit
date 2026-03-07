@@ -7,26 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-07
+
 ### Added
 
 - React 19 helper utilities:
   - `createTransitionAction` for transition-wrapped store actions
   - `useActionStateAdapter` for action-state integration patterns
   - `useOptimisticReducer` for optimistic UI flows
-- Custom selector equality support for:
-  - `useStore`
-  - `useContextStore`
-  - `useResolvedStoreWithSelector`
-- New `getProvider()` API in toolkit as explicit shared-provider accessor
+- Explicit plain-selector escape hatches across the API:
+  - `useStorePlain`
+  - `useContextStorePlain`
+  - `useResolvedStorePlain`
+- Explicit raw-store access naming:
+  - `useContextStoreApi`
+  - `useContextStoreOptional`
+  - `useResolvedStoreApi`
+- Shared `provider` property in toolkit as the primary provider accessor
+- Compile-time middleware compatibility coverage for devtools, persist, subscribeWithSelector, immer, and combined paths
 
 ### Changed
 
-- `createProvider()` is now documented as a backward-compatible alias to `getProvider()`
-- `README.md` updated with React 19 usage patterns and custom equality examples
+- `createProvider()` is now a backward-compatible alias for the shared `provider` / `getProvider()` contract
+- `useContextStoreOptional()` is now the primary optional provider API hook name
+- `useResolvedValue()` is now the primary resolved selector hook name
+- `README.md` updated to document the symmetric value/plain/api access matrix
 
 ### Fixed
 
-- Moved provider `onStoreCreate` initialization out of render-phase into effect lifecycle
+- Deprecated `onStoreCreate` in favor of `onStoreInit` and `onStoreReady` lifecycle semantics
+- Preserved middleware mutator types through global, provider, and toolkit APIs
 
 ## [0.2.0] - 2026-01-25
 
@@ -71,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.0...v0.1.1

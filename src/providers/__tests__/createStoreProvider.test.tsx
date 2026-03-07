@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createStoreProvider } from "../createStoreProvider";
 import type { PropsWithChildren } from "react";
@@ -9,28 +9,38 @@ interface TestStore {
   increment: () => void;
 }
 
+interface LegacyProviderProps {
+  onStoreCreate?: () => void;
+}
+
 describe("createStoreProvider", () => {
   it("should create provider and context hooks", () => {
-    const { Provider, useContext, useContextStore, useIsInsideProvider } =
-      createStoreProvider<TestStore>((set) => ({
-        value: 0,
-        increment: () => set((state) => ({ value: state.value + 1 })),
-      }));
+    const {
+      Provider,
+      useContextStoreApi,
+      useContextStore,
+      useContextStorePlain,
+      useIsInsideProvider,
+    } = createStoreProvider<TestStore>((set) => ({
+      value: 0,
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
 
     expect(Provider).toBeDefined();
-    expect(useContext).toBeDefined();
+    expect(useContextStoreApi).toBeDefined();
     expect(useContextStore).toBeDefined();
+    expect(useContextStorePlain).toBeDefined();
     expect(useIsInsideProvider).toBeDefined();
   });
 
   it("should throw error when used outside provider", () => {
-    const { useContext } = createStoreProvider<TestStore>((set) => ({
+    const { useContextStoreApi } = createStoreProvider<TestStore>((set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
     expect(() => {
-      renderHook(() => useContext());
+      renderHook(() => useContextStoreApi());
     }).toThrow();
   });
 
@@ -85,7 +95,7 @@ describe("createStoreProvider", () => {
     expect(result1.current).not.toBe(result2.current);
   });
 
-  it("should call onStoreCreate callback with store", () => {
+  it("should call onStoreReady callback with store", async () => {
     let receivedStore: StoreApi<TestStore> | null = null;
 
     const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
@@ -95,7 +105,7 @@ describe("createStoreProvider", () => {
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
-        onStoreCreate={(store) => {
+        onStoreReady={(store) => {
           receivedStore = store;
         }}
       >
@@ -105,13 +115,15 @@ describe("createStoreProvider", () => {
 
     renderHook(() => useContextStore(), { wrapper });
 
-    expect(receivedStore).not.toBeNull();
+    await waitFor(() => {
+      expect(receivedStore).not.toBeNull();
+    });
     expect(receivedStore).toHaveProperty("getState");
     expect(receivedStore).toHaveProperty("setState");
     expect(receivedStore).toHaveProperty("subscribe");
   });
 
-  it("should allow store initialization via onStoreCreate", () => {
+  it("should allow store initialization via onStoreInit", () => {
     interface StoreWithInit extends TestStore {
       initialized: boolean;
       setInitialized: (value: boolean) => void;
@@ -126,7 +138,7 @@ describe("createStoreProvider", () => {
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
-        onStoreCreate={(store) => {
+        onStoreInit={(store) => {
           store.getState().setInitialized(true);
         }}
       >
@@ -180,33 +192,33 @@ describe("createStoreProvider", () => {
     expect(result.current).toBe(100);
   });
 
-  it("should return null from useOptionalContext when outside provider", () => {
-    const { useOptionalContext } = createStoreProvider<TestStore>((set) => ({
+  it("should return null from useContextStoreOptional when outside provider", () => {
+    const { useContextStoreOptional } = createStoreProvider<TestStore>((set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
-    const { result } = renderHook(() => useOptionalContext());
+    const { result } = renderHook(() => useContextStoreOptional());
 
     expect(result.current).toBeNull();
   });
 
-  it("should return store from useOptionalContext when inside provider", () => {
-    const { Provider, useOptionalContext } = createStoreProvider<TestStore>((set) => ({
+  it("should return store from useContextStoreOptional when inside provider", () => {
+    const { Provider, useContextStoreOptional } = createStoreProvider<TestStore>((set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
     const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
 
-    const { result } = renderHook(() => useOptionalContext(), { wrapper });
+    const { result } = renderHook(() => useContextStoreOptional(), { wrapper });
 
     expect(result.current).not.toBeNull();
     expect(result.current).toHaveProperty("getState");
     expect(result.current).toHaveProperty("setState");
   });
 
-  it("should call onStoreCreate only once for rerenders", () => {
+  it("should call onStoreReady only once for rerenders", async () => {
     let calls = 0;
 
     const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
@@ -216,7 +228,7 @@ describe("createStoreProvider", () => {
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
-        onStoreCreate={() => {
+        onStoreReady={() => {
           calls += 1;
         }}
       >
@@ -226,24 +238,58 @@ describe("createStoreProvider", () => {
 
     const { rerender } = renderHook(() => useContextStore((state) => state.value), { wrapper });
 
+    await waitFor(() => {
+      expect(calls).toBe(1);
+    });
+
     rerender();
     rerender();
 
     expect(calls).toBe(1);
   });
 
-  it("should support custom equality for context selector hook", () => {
-    const { Provider, useContext, useContextStore } = createStoreProvider<TestStore>((set) => ({
+  it("should keep deprecated onStoreCreate as onStoreReady alias", async () => {
+    let calls = 0;
+
+    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
+
+    const legacyProps: LegacyProviderProps = {
+      onStoreCreate: () => {
+        calls += 1;
+      },
+    };
+
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider {...legacyProps}>{children}</Provider>
+    );
+
+    renderHook(() => useContextStore((state) => state.value), { wrapper });
+
+    await waitFor(() => {
+      expect(calls).toBe(1);
+    });
+  });
+
+  it("should support custom equality for context selector hook", () => {
+    const { Provider, useContextStoreApi, useContextStore } = createStoreProvider<TestStore>(
+      (set) => ({
+        value: 0,
+        increment: () => set((state) => ({ value: state.value + 1 })),
+      })
+    );
 
     const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
 
     const { result } = renderHook(
       () => ({
-        store: useContext(),
-        value: useContextStore((state) => state.value, () => true),
+        store: useContextStoreApi(),
+        value: useContextStore(
+          (state) => state.value,
+          () => true
+        ),
       }),
       { wrapper }
     );
@@ -255,5 +301,37 @@ describe("createStoreProvider", () => {
     });
 
     expect(result.current.value).toBe(0);
+  });
+
+  it("should expose plain selector access for provider store", () => {
+    interface ProviderPlainStore extends TestStore {
+      label: string;
+      setLabel: (label: string) => void;
+    }
+
+    const { Provider, useContextStore, useContextStorePlain, useContextStoreApi } =
+      createStoreProvider<ProviderPlainStore>((set) => ({
+        value: 0,
+        label: "test",
+        increment: () => set((state) => ({ value: state.value + 1 })),
+        setLabel: (label: string) => set({ label }),
+      }));
+
+    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const { result } = renderHook(
+      () => ({
+        api: useContextStoreApi(),
+        shallow: useContextStore((state) => ({ value: state.value })),
+        plain: useContextStorePlain((state) => state.label),
+      }),
+      { wrapper }
+    );
+
+    act(() => {
+      result.current.api.getState().setLabel("updated");
+    });
+
+    expect(result.current.shallow.value).toBe(0);
+    expect(result.current.plain).toBe("updated");
   });
 });

@@ -1,28 +1,49 @@
 import type { ReactNode } from "react";
-import type { StateCreator, StoreApi, StoreMutators } from "zustand";
+import type {} from "zustand/middleware";
+import type { Mutate, StateCreator, StoreApi, StoreMutatorIdentifier } from "zustand";
+
+export type StoreMutatorTuple = [StoreMutatorIdentifier, unknown];
+export type StoreApiWithMutators<TState, TMutators extends Array<StoreMutatorTuple> = []> = Mutate<
+  StoreApi<TState>,
+  TMutators
+>;
+
+export interface StoreValueHook<TState> {
+  (): TState;
+  <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
+}
+
+export interface StorePlainHook<TState> {
+  (): TState;
+  <T>(selector: (state: TState) => T): T;
+}
 
 /**
  * Store bindings with shallow comparison built-in
  */
-export interface ShallowStoreBindings<TState> {
+export interface ShallowStoreBindings<TState, TMutators extends Array<StoreMutatorTuple> = []> {
   /**
    * Hook to access store state with automatic shallow comparison
    * Can be used with or without selector
    */
-  useStore: {
-    (): TState;
-    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
-  };
+  useStore: StoreValueHook<TState>;
+  /**
+   * Hook to access store state with plain Zustand selector semantics
+   */
+  useStorePlain: StorePlainHook<TState>;
   /**
    * Direct access to store API for advanced usage
    */
-  useStoreApi: StoreApi<TState>;
+  useStoreApi: StoreApiWithMutators<TState, TMutators>;
 }
 
 /**
  * Configuration for store provider
  */
-export interface StoreProviderConfig<TState = unknown> {
+export interface StoreProviderConfig<
+  TState = unknown,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> {
   /**
    * Enable Redux DevTools integration
    * @default process.env.NODE_ENV === 'development'
@@ -34,38 +55,54 @@ export interface StoreProviderConfig<TState = unknown> {
    */
   devtoolsName?: string;
   /**
-   * Callback called after store is created
-   * Use this to initialize the store, register middlewares, etc.
+   * Pure synchronous initialization hook invoked when the store instance is created.
+   * This callback must stay idempotent and side-effect free.
    */
-  onStoreCreate?: (store: StoreApi<TState>) => void;
+  onStoreInit?: (store: StoreApiWithMutators<TState, TMutators>) => void;
+  /**
+   * Post-commit lifecycle hook for side effects that need a ready store instance.
+   */
+  onStoreReady?: (store: StoreApiWithMutators<TState, TMutators>) => void;
+  /**
+   * @deprecated Use `onStoreReady` for post-commit side effects.
+   */
+  onStoreCreate?: (store: StoreApiWithMutators<TState, TMutators>) => void;
 }
 
 /**
  * Props for generated provider component
  */
-export interface StoreProviderProps<TState = unknown> extends StoreProviderConfig<TState> {
+export interface StoreProviderProps<
+  TState = unknown,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> extends StoreProviderConfig<TState, TMutators> {
   children: ReactNode;
 }
 
 /**
  * Result of createStoreProvider factory
  */
-export interface StoreProviderResult<TState> {
+export interface StoreProviderResult<TState, TMutators extends Array<StoreMutatorTuple> = []> {
   /**
    * Provider component to wrap your app/subtree
    */
-  Provider: (props: StoreProviderProps<TState>) => ReactNode;
+  Provider: (props: StoreProviderProps<TState, TMutators>) => ReactNode;
   /**
    * Hook to access store from context (throws if outside provider)
    */
-  useContext: () => StoreApi<TState>;
+  useContextStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  /**
+   * @deprecated Use `useContextStoreApi`.
+   */
+  useContext: () => StoreApiWithMutators<TState, TMutators>;
   /**
    * Hook to access store with selector from context
    */
-  useContextStore: {
-    (): TState;
-    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
-  };
+  useContextStore: StoreValueHook<TState>;
+  /**
+   * Hook to access store with plain Zustand selector semantics from context
+   */
+  useContextStorePlain: StorePlainHook<TState>;
   /**
    * Check if component is inside provider
    */
@@ -73,33 +110,53 @@ export interface StoreProviderResult<TState> {
   /**
    * Hook to access store from context (returns null if outside provider)
    */
-  useOptionalContext: () => StoreApi<TState> | null;
+  useContextStoreOptional: () => StoreApiWithMutators<TState, TMutators> | null;
+  /**
+   * @deprecated Use `useContextStoreOptional`.
+   */
+  useOptionalContext: () => StoreApiWithMutators<TState, TMutators> | null;
 }
 
 /**
  * Combined result with both global and provider capabilities
  */
-export interface StoreToolkit<TState> extends ShallowStoreBindings<TState> {
+export interface StoreToolkit<
+  TState,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> extends ShallowStoreBindings<TState, TMutators> {
   /**
-   * Get shared provider for isolated store instances.
+   * Shared provider toolkit for isolated store instances.
+   */
+  provider: StoreProviderResult<TState, TMutators>;
+  /**
+   * Get the shared provider toolkit.
    * Multiple calls return the same provider/context hooks.
    */
-  getProvider: () => StoreProviderResult<TState>;
+  getProvider: () => StoreProviderResult<TState, TMutators>;
   /**
-   * Backward-compatible alias for getProvider
+   * @deprecated Use `provider` or `getProvider()`.
    */
-  createProvider: () => StoreProviderResult<TState>;
+  createProvider: () => StoreProviderResult<TState, TMutators>;
   /**
    * Hook that resolves to context store if inside provider, otherwise global store
    */
-  useResolvedStore: () => StoreApi<TState>;
+  useResolvedStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  /**
+   * @deprecated Use `useResolvedStoreApi`.
+   */
+  useResolvedStore: () => StoreApiWithMutators<TState, TMutators>;
   /**
    * Hook that resolves store and applies selector with shallow comparison
    */
-  useResolvedStoreWithSelector: {
-    (): TState;
-    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
-  };
+  useResolvedValue: StoreValueHook<TState>;
+  /**
+   * @deprecated Use `useResolvedValue`.
+   */
+  useResolvedStoreWithSelector: StoreValueHook<TState>;
+  /**
+   * Hook that resolves store and applies plain Zustand selector semantics
+   */
+  useResolvedStorePlain: StorePlainHook<TState>;
 }
 
 /**
@@ -112,5 +169,5 @@ export type SimpleStateCreator<TState> = StateCreator<TState, [], [], TState>;
  */
 export type MutatorsStateCreator<
   TState,
-  TMutators extends Array<[keyof StoreMutators<TState, TState>, unknown]> = [],
+  TMutators extends Array<StoreMutatorTuple> = [],
 > = StateCreator<TState, [], TMutators, TState>;
