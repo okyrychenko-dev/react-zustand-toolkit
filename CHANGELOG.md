@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-18
+
+### Breaking Changes
+
+- Removed provider-level Redux DevTools props:
+  - `enableDevtools`
+  - `devtoolsName`
+- `createStoreProvider` no longer auto-connects provider instances to Redux DevTools
+
+### Changed
+
+- Clarified the library contract around provider responsibilities:
+  - providers now focus on isolated store instances, lifecycle hooks, and context access
+  - Zustand DevTools integration belongs in the store creator via `zustand/middleware`
+- Reworked README examples and API guidance around:
+  - `createShallowStore`
+  - `createStoreProvider`
+  - `createStoreToolkit`
+  - resolved hooks
+  - plain-selector hooks
+  - middleware composition
+- Tightened local repository engineering rules:
+  - no `any`
+  - no type assertions
+  - no non-null assertions
+
+### Fixed
+
+- Removed provider-level DevTools implementation complexity from the runtime
+- Improved provider hook error messaging
+- Closed remaining branch and lifecycle test gaps across provider and resolved hook flows
+- Achieved full automated coverage for the package test suite
+
 ## [0.3.0] - 2026-03-07
 
 ### Added
@@ -77,11 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `createShallowStore` with built-in shallow comparison
 - `createStoreProvider` for isolated store instances (SSR/tests/micro-frontends)
 - `createStoreToolkit` with resolved hooks for global vs context stores
-- DevTools integration support via provider configuration
+- Provider lifecycle API for isolated store initialization
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.1...v0.1.2

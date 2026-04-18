@@ -10,12 +10,15 @@ import type {
 } from "../types";
 
 /**
- * Creates a Zustand store with automatic shallow comparison for all selectors.
+ * Creates a Zustand store with shallow-first selector semantics.
  *
- * This utility wraps Zustand's `createStore` and returns a hook that automatically
- * uses shallow comparison for all selectors. This prevents unnecessary re-renders when
- * selecting multiple values from the store, as it only re-renders when the actual
- * values change, not when the reference changes.
+ * This utility wraps Zustand's `createStore` and returns hooks for two selector modes:
+ * - `useStore`: shallow-first selection with optional custom equality
+ * - `useStorePlain`: plain Zustand selector semantics
+ *
+ * The shallow-first path helps avoid unnecessary re-renders when selecting multiple
+ * values from the store, as it only re-renders when the actual values change, not
+ * when the reference changes.
  *
  * Without shallow comparison, selecting multiple values like `{ count, name }` would
  * cause a re-render on every store update because the object reference changes.

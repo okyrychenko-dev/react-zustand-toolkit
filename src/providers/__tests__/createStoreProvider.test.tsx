@@ -153,45 +153,6 @@ describe("createStoreProvider", () => {
     expect(result.current).toBe(true);
   });
 
-  it("should work with enableDevtools explicitly set to false", () => {
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
-      value: 42,
-      increment: () => set((state) => ({ value: state.value + 1 })),
-    }));
-
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <Provider enableDevtools={false}>{children}</Provider>
-    );
-
-    const { result } = renderHook(() => useContextStore((state) => state.value), {
-      wrapper,
-    });
-
-    expect(result.current).toBe(42);
-  });
-
-  it("should work with enableDevtools explicitly set to true", () => {
-    const { Provider, useContextStore } = createStoreProvider<TestStore>(
-      (set) => ({
-        value: 100,
-        increment: () => set((state) => ({ value: state.value + 1 })),
-      }),
-      "TestDevtoolsStore"
-    );
-
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <Provider enableDevtools={true} devtoolsName="CustomDevtoolsName">
-        {children}
-      </Provider>
-    );
-
-    const { result } = renderHook(() => useContextStore((state) => state.value), {
-      wrapper,
-    });
-
-    expect(result.current).toBe(100);
-  });
-
   it("should return null from useContextStoreOptional when outside provider", () => {
     const { useContextStoreOptional } = createStoreProvider<TestStore>((set) => ({
       value: 0,
@@ -333,5 +294,24 @@ describe("createStoreProvider", () => {
 
     expect(result.current.shallow.value).toBe(0);
     expect(result.current.plain).toBe("updated");
+  });
+
+  it("should expose full state through plain context hook without selector", () => {
+    interface ProviderPlainStore extends TestStore {
+      label: string;
+    }
+
+    const { Provider, useContextStorePlain } = createStoreProvider<ProviderPlainStore>((set) => ({
+      value: 5,
+      label: "ready",
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
+
+    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const { result } = renderHook(() => useContextStorePlain(), { wrapper });
+
+    expect(result.current.value).toBe(5);
+    expect(result.current.label).toBe("ready");
+    expect(typeof result.current.increment).toBe("function");
   });
 });

@@ -1,6 +1,13 @@
-import { type ReactNode, createContext, useContext, useEffect, useMemo, useRef } from "react";
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createStore, useStore } from "zustand";
-import { devtools } from "zustand/middleware";
 import { shallow } from "zustand/shallow";
 import { createSelectorWithEquality } from "../shared";
 import type {
@@ -10,7 +17,6 @@ import type {
   StoreProviderProps,
   StoreProviderResult,
 } from "../types";
-import type { StateCreator } from "zustand";
 
 type ProviderRuntimeProps<TState, TMutators extends Array<StoreMutatorTuple>> = Omit<
   StoreProviderProps<TState, TMutators>,
@@ -18,19 +24,6 @@ type ProviderRuntimeProps<TState, TMutators extends Array<StoreMutatorTuple>> = 
 > & {
   onStoreCreate?: (store: StoreApiWithMutators<TState, TMutators>) => void;
 };
-
-type DevtoolsStateCreator<TState, TMutators extends Array<StoreMutatorTuple>> = StateCreator<
-  TState,
-  [["zustand/devtools", never]],
-  TMutators,
-  TState
->;
-
-function wrapForDevtools<TState, TMutators extends Array<StoreMutatorTuple>>(
-  creator: MutatorsStateCreator<TState, TMutators>
-): DevtoolsStateCreator<TState, TMutators> {
-  return (set, get, api) => creator(set, get, api);
-}
 
 /**
  * Creates a React Context provider for isolated Zustand store instances.
@@ -42,8 +35,8 @@ function wrapForDevtools<TState, TMutators extends Array<StoreMutatorTuple>>(
  * - **Micro-frontends**: Isolated state per application instance
  * - **Multiple instances**: Same component tree with independent state
  *
- * The provider automatically integrates Zustand DevTools in development mode and
- * provides hooks for accessing the store from components within the provider tree.
+ * The provider creates isolated store instances and provides hooks for accessing
+ * the store from components within the provider tree.
  *
  * Returns an object with:
  * - `Provider`: React component to wrap your app
@@ -58,7 +51,7 @@ function wrapForDevtools<TState, TMutators extends Array<StoreMutatorTuple>>(
  *
  * @param storeCreator - Function that creates the store state and actions
  * @param contextName - Optional name for better debugging (default: 'Store')
- *                      Used in React DevTools and error messages
+ *                      Used in React DevTools display names and error messages
  *
  * @returns Object with Provider component and hooks to access the context store
  *
@@ -132,33 +125,22 @@ function wrapForDevtools<TState, TMutators extends Array<StoreMutatorTuple>>(
  * ```
  *
  * @example
- * With DevTools and lifecycle hooks
+ * With lifecycle hooks
  * ```tsx
- * const { Provider, useContextStore } = createStoreProvider<AppState>(
- *   (set) => ({
- *     // ... state
- *   }),
- *   'AppStore'
- * );
+ * const { Provider } = createStoreProvider<AppState>((set) => ({
+ *   // ... state
+ * }));
  *
- * function App() {
- *   return (
- *     <Provider
- *       enableDevtools={true}
- *       devtoolsName="My App Store"
- *       onStoreInit={(store) => {
- *         // Called once when the store instance is created
- *         store.setState({ ready: true });
- *       }}
- *       onStoreReady={(store) => {
- *         // Called after the provider commits
- *         console.log('Store initialized:', store.getState());
- *       }}
- *     >
- *       <MyApp />
- *     </Provider>
- *   );
- * }
+ * <Provider
+ *   onStoreInit={(store) => {
+ *     store.setState({ ready: true });
+ *   }}
+ *   onStoreReady={(store) => {
+ *     console.log('Store initialized:', store.getState());
+ *   }}
+ * >
+ *   <MyApp />
+ * </Provider>
  * ```
  *
  * @example
@@ -193,37 +175,16 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
 
   function Provider({
     children,
-    enableDevtools = process.env.NODE_ENV === "development",
-    devtoolsName = contextName,
     onStoreInit,
     onStoreReady,
     onStoreCreate,
   }: ProviderRuntimeProps<TState, TMutators>): ReactNode {
-    const storeRef = useRef<StoreApiWithMutators<TState, TMutators> | null>(null);
     const isReadyRef = useRef(false);
-
-    if (!storeRef.current) {
+    const [store] = useState<StoreApiWithMutators<TState, TMutators>>(() => {
       const newStore = createStore<TState, TMutators>(storeCreator);
-
-      if (enableDevtools) {
-        const devtoolsStore = createStore(
-          devtools(wrapForDevtools(storeCreator), {
-            name: devtoolsName,
-            enabled: enableDevtools,
-          })
-        );
-
-        newStore.setState = devtoolsStore.setState;
-        newStore.getState = devtoolsStore.getState;
-        newStore.getInitialState = devtoolsStore.getInitialState;
-        newStore.subscribe = devtoolsStore.subscribe;
-      }
-
       onStoreInit?.(newStore);
-      storeRef.current = newStore;
-    }
-
-    const store = storeRef.current;
+      return newStore;
+    });
 
     useEffect(() => {
       const readyCallback = onStoreReady ?? onStoreCreate;
@@ -241,7 +202,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     const store = useContext(StoreContext);
 
     if (store === null) {
-      throw new Error(`use${contextName}Context must be used within a ${contextName}Provider`);
+      throw new Error(`${contextName} store hooks must be used within a ${contextName}Provider`);
     }
 
     return store;

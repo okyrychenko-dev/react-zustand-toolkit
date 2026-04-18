@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import type {} from "zustand/middleware";
 import type { Mutate, StateCreator, StoreApi, StoreMutatorIdentifier } from "zustand";
 
 export type StoreMutatorTuple = [StoreMutatorIdentifier, unknown];
@@ -44,16 +43,6 @@ export interface StoreProviderConfig<
   TState = unknown,
   TMutators extends Array<StoreMutatorTuple> = [],
 > {
-  /**
-   * Enable Redux DevTools integration
-   * @default process.env.NODE_ENV === 'development'
-   */
-  enableDevtools?: boolean;
-  /**
-   * Name for the DevTools instance
-   * @default 'Store'
-   */
-  devtoolsName?: string;
   /**
    * Pure synchronous initialization hook invoked when the store instance is created.
    * This callback must stay idempotent and side-effect free.

@@ -168,4 +168,39 @@ describe("createStoreToolkit", () => {
     expect(apiResult.current).toBe(toolkit.useStoreApi);
     expect(toolkit.useResolvedValue).toBe(legacyToolkit.useResolvedStoreWithSelector);
   });
+
+  it("should expose full resolved state without selector outside provider", () => {
+    const toolkit = createStoreToolkit<TestStore>((set) => ({
+      count: 3,
+      increment: () => set((state) => ({ count: state.count + 1 })),
+    }));
+
+    const { result: valueResult } = renderHook(() => toolkit.useResolvedValue());
+    const { result: plainResult } = renderHook(() => toolkit.useResolvedStorePlain());
+
+    expect(valueResult.current.count).toBe(3);
+    expect(typeof valueResult.current.increment).toBe("function");
+    expect(plainResult.current.count).toBe(3);
+    expect(typeof plainResult.current.increment).toBe("function");
+  });
+
+  it("should expose full resolved state from provider store", () => {
+    const toolkit = createStoreToolkit<TestStore>((set) => ({
+      count: 7,
+      increment: () => set((state) => ({ count: state.count + 1 })),
+    }));
+
+    const { Provider } = toolkit.provider;
+    const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
+
+    const { result: valueResult } = renderHook(() => toolkit.useResolvedValue(), { wrapper });
+    const { result: plainResult } = renderHook(() => toolkit.useResolvedStorePlain(), {
+      wrapper,
+    });
+
+    expect(valueResult.current.count).toBe(7);
+    expect(typeof valueResult.current.increment).toBe("function");
+    expect(plainResult.current.count).toBe(7);
+    expect(typeof plainResult.current.increment).toBe("function");
+  });
 });

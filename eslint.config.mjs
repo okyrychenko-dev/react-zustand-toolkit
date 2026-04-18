@@ -103,7 +103,6 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: ["error", "always"],
-      curly: ["error", "all"],
     },
   },
   {
@@ -125,4 +124,10 @@ export default [
     },
   },
   prettier,
+  // curly must come AFTER prettier — eslint-config-prettier disables it otherwise
+  {
+    rules: {
+      curly: ["error", "all"],
+    },
+  },
 ];
