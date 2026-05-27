@@ -18,8 +18,12 @@ export type {
   MutatorsStateCreator,
   ShallowStoreBindings,
   SimpleStateCreator,
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+  StorePlainHook,
   StoreProviderConfig,
   StoreProviderProps,
   StoreProviderResult,
   StoreToolkit,
+  StoreValueHook,
 } from "./types";

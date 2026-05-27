@@ -26,6 +26,7 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
 
+      "import/no-duplicates": "error",
       "import/order": [
         "error",
         {
@@ -43,7 +44,9 @@ export default [
           alphabetize: {
             order: "asc",
             caseInsensitive: true,
+            orderImportKind: "asc",
           },
+          sortTypesGroup: true,
         },
       ],
       "sort-imports": [

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-27
+
+### Added
+
+- Exported store hook and mutator helper types from the public package entrypoint.
+
+### Changed
+
+- Refreshed the package lockfile after dependency maintenance updates.
+
 ## [0.4.0] - 2026-04-18
 
 ### Breaking Changes
@@ -114,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.1.2...v0.2.0
