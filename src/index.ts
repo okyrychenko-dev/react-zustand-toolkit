@@ -1,17 +1,14 @@
 // Core utilities
-export { createShallowStore } from "./core/createShallowStore";
-export { createStoreToolkit } from "./core/createStoreToolkit";
+export { createShallowStore, createStoreToolkit } from "./core";
 
 // Provider utilities
-export { createStoreProvider } from "./providers/createStoreProvider";
+export { createStoreProvider } from "./providers";
 
 // Hook utilities
-export { createResolvedStoreHooks } from "./hooks/createResolvedStoreHooks";
+export { createResolvedStoreHooks } from "./hooks";
 
 // React 19 utilities
-export { createTransitionAction } from "./react19/createTransitionAction";
-export { useActionStateAdapter } from "./react19/useActionStateAdapter";
-export { useOptimisticReducer } from "./react19/useOptimisticReducer";
+export { createTransitionAction, useActionStateAdapter, useOptimisticReducer } from "./react19";
 
 // Types
 export type {

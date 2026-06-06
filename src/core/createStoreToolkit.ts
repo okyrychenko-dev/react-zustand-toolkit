@@ -1,5 +1,5 @@
-import { createResolvedStoreHooks } from "../hooks/createResolvedStoreHooks";
-import { createStoreProvider } from "../providers/createStoreProvider";
+import { createResolvedStoreHooks } from "../hooks";
+import { createStoreProvider } from "../providers";
 import { createShallowStore } from "./createShallowStore";
 import type {
   MutatorsStateCreator,

@@ -314,4 +314,21 @@ describe("createStoreProvider", () => {
     expect(result.current.label).toBe("ready");
     expect(typeof result.current.increment).toBe("function");
   });
+
+  it("should preserve context shallow selection reference across parent rerenders", () => {
+    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+      value: 0,
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
+    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const { result, rerender } = renderHook(
+      () => useContextStore((state) => ({ value: state.value })),
+      { wrapper }
+    );
+    const initialSelection = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(initialSelection);
+  });
 });

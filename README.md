@@ -397,6 +397,11 @@ const incrementInTransition = createTransitionAction(() => {
   counterToolkit.useStoreApi.getState().increment();
 });
 
+const saveInTransition = createTransitionAction(async () => {
+  await save();
+  counterToolkit.useStoreApi.setState({ saved: true });
+});
+
 const [status, submit, isPending] = useActionStateAdapter(async (payload: FormData) => {
   await save(payload);
   return "saved";
@@ -407,6 +412,9 @@ const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(
   (current, nextTodo) => [...current, nextTodo]
 );
 ```
+
+`createTransitionAction` supports synchronous and asynchronous actions. In React 19,
+an async action remains part of the transition until its returned promise settles.
 
 ## Development
 

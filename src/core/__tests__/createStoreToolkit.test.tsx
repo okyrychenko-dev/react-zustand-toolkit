@@ -1,5 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { createStore } from "zustand";
+import { createResolvedStoreHooks } from "../../hooks";
 import { createStoreToolkit } from "../createStoreToolkit";
 import type { ReactNode } from "react";
 
@@ -202,5 +204,41 @@ describe("createStoreToolkit", () => {
     expect(typeof valueResult.current.increment).toBe("function");
     expect(plainResult.current.count).toBe(7);
     expect(typeof plainResult.current.increment).toBe("function");
+  });
+
+  it("should preserve resolved shallow selection reference across parent rerenders", () => {
+    const toolkit = createStoreToolkit<TestStore>((set) => ({
+      count: 0,
+      increment: () => set((state) => ({ count: state.count + 1 })),
+    }));
+    const { result, rerender } = renderHook(() =>
+      toolkit.useResolvedValue((state) => ({ count: state.count }))
+    );
+    const initialSelection = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(initialSelection);
+  });
+
+  it("should reset resolved selection reference when the resolved store changes", () => {
+    interface CollectionStore {
+      items: Array<number>;
+    }
+
+    const globalItems = [1, 2, 3];
+    const contextItems = [1, 2, 3];
+    const globalStore = createStore<CollectionStore>(() => ({ items: globalItems }));
+    const contextStore = createStore<CollectionStore>(() => ({ items: contextItems }));
+    let resolvedContextStore: typeof contextStore | null = null;
+    const { useResolvedValue } = createResolvedStoreHooks(globalStore, () => resolvedContextStore);
+    const { result, rerender } = renderHook(() => useResolvedValue((state) => state.items));
+
+    expect(result.current).toBe(globalItems);
+
+    resolvedContextStore = contextStore;
+    rerender();
+
+    expect(result.current).toBe(contextItems);
   });
 });

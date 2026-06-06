@@ -1,7 +1,6 @@
-import { useMemo } from "react";
 import { createStore, useStore } from "zustand";
 import { shallow } from "zustand/shallow";
-import { createSelectorWithEquality } from "../shared";
+import { useSelectorWithEquality } from "../hooks";
 import type {
   MutatorsStateCreator,
   ShallowStoreBindings,
@@ -116,7 +115,7 @@ import type {
  * const { useStore, useStoreApi } = createShallowStore<CounterState>(...);
  *
  * function ExternalButton() {
- *   const storeApi = useStoreApi();
+ *   const storeApi = useStoreApi;
  *
  *   const handleClick = () => {
  *     // Direct imperative access without hook
@@ -155,12 +154,11 @@ export function createShallowStore<TState, TMutators extends Array<StoreMutatorT
     selector?: (state: TState) => T,
     equalityFn?: (a: T | TState, b: T | TState) => boolean
   ): T | TState {
-    const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
-    const actualEquality = equalityFn ?? defaultEquality;
-    const actualSelector = useMemo(() => {
-      const baseSelector = (state: TState): T | TState => (selector ? selector(state) : state);
-      return createSelectorWithEquality(baseSelector, actualEquality);
-    }, [selector, actualEquality]);
+    const actualSelector = useSelectorWithEquality({
+      cacheKey: storeApi,
+      equalityFn: equalityFn ?? shallow,
+      selector: (state: TState): T | TState => (selector ? selector(state) : state),
+    });
 
     return useStore(storeApi, actualSelector);
   }

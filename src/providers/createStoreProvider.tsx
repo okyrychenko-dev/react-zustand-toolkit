@@ -1,15 +1,7 @@
-import {
-  type ReactNode,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createStore, useStore } from "zustand";
 import { shallow } from "zustand/shallow";
-import { createSelectorWithEquality } from "../shared";
+import { useSelectorWithEquality } from "../hooks";
 import type {
   MutatorsStateCreator,
   StoreApiWithMutators,
@@ -228,12 +220,11 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     equalityFn?: (a: T | TState, b: T | TState) => boolean
   ): T | TState {
     const store = useStoreContext();
-    const defaultEquality = (a: T | TState, b: T | TState): boolean => shallow(a, b);
-    const actualEquality = equalityFn ?? defaultEquality;
-    const actualSelector = useMemo(() => {
-      const baseSelector = (state: TState): T | TState => (selector ? selector(state) : state);
-      return createSelectorWithEquality(baseSelector, actualEquality);
-    }, [selector, actualEquality]);
+    const actualSelector = useSelectorWithEquality({
+      cacheKey: store,
+      equalityFn: equalityFn ?? shallow,
+      selector: (state: TState): T | TState => (selector ? selector(state) : state),
+    });
 
     return useStore(store, actualSelector);
   }

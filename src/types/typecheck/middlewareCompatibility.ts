@@ -1,8 +1,7 @@
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { createShallowStore } from "../../core/createShallowStore";
-import { createStoreToolkit } from "../../core/createStoreToolkit";
-import { createStoreProvider } from "../../providers/createStoreProvider";
+import { createShallowStore, createStoreToolkit } from "../../core";
+import { createStoreProvider } from "../../providers";
 
 interface CounterState {
   count: number;
