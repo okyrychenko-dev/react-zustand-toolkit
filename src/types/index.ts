@@ -50,10 +50,13 @@ export interface StoreProviderConfig<
   onStoreInit?: (store: StoreApiWithMutators<TState, TMutators>) => void;
   /**
    * Post-commit lifecycle hook for side effects that need a ready store instance.
+   * Called at most once per provider store instance. May be provided after the
+   * initial render if no ready callback has already run.
    */
   onStoreReady?: (store: StoreApiWithMutators<TState, TMutators>) => void;
   /**
    * @deprecated Use `onStoreReady` for post-commit side effects.
+   * Ignored when `onStoreReady` is also provided.
    */
   onStoreCreate?: (store: StoreApiWithMutators<TState, TMutators>) => void;
 }

@@ -248,6 +248,10 @@ function Status() {
 - `onStoreInit` for synchronous initialization during store creation
 - `onStoreReady` for post-commit side effects
 
+`onStoreReady` is called at most once for each provider store instance. It may be
+provided after the initial render and will run after that render commits, as long
+as no ready callback has already run for the instance.
+
 ```tsx
 const { Provider } = createStoreProvider<AppStore>((set) => ({
   ready: false,
@@ -268,7 +272,8 @@ const { Provider } = createStoreProvider<AppStore>((set) => ({
 
 Deprecated alias:
 
-- `onStoreCreate` maps to the post-commit `onStoreReady` behavior
+- `onStoreCreate` maps to the post-commit `onStoreReady` behavior and is ignored
+  when `onStoreReady` is also provided
 
 ## Middleware Support
 

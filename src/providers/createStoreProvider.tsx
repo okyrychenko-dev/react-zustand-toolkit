@@ -2,6 +2,7 @@ import { type ReactNode, createContext, useContext, useEffect, useRef, useState 
 import { createStore, useStore } from "zustand";
 import { shallow } from "zustand/shallow";
 import { useSelectorWithEquality } from "../hooks";
+import { identitySelector } from "../utils";
 import type {
   MutatorsStateCreator,
   StoreApiWithMutators,
@@ -233,7 +234,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
   function useContextStorePlain<T>(selector: (state: TState) => T): T;
   function useContextStorePlain<T>(selector?: (state: TState) => T): T | TState {
     const store = useStoreContext();
-    const actualSelector = selector ?? ((state: TState) => state);
+    const actualSelector = selector ?? identitySelector<TState>;
     return useStore<typeof store, T | TState>(store, actualSelector);
   }
 

@@ -1,5 +1,5 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { createStoreProvider } from "../createStoreProvider";
 import type { PropsWithChildren } from "react";
 import type { StoreApi } from "zustand";
@@ -207,6 +207,23 @@ describe("createStoreProvider", () => {
     rerender();
 
     expect(calls).toBe(1);
+  });
+
+  it("should call onStoreReady when it is provided after the initial render", async () => {
+    const onStoreReady = vi.fn();
+    const { Provider } = createStoreProvider<TestStore>((set) => ({
+      value: 0,
+      increment: () => set((state) => ({ value: state.value + 1 })),
+    }));
+    const { rerender } = render(<Provider>content</Provider>);
+
+    expect(onStoreReady).not.toHaveBeenCalled();
+
+    rerender(<Provider onStoreReady={onStoreReady}>content</Provider>);
+
+    await waitFor(() => {
+      expect(onStoreReady).toHaveBeenCalledOnce();
+    });
   });
 
   it("should keep deprecated onStoreCreate as onStoreReady alias", async () => {

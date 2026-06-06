@@ -1,5 +1,6 @@
 import { useStore } from "zustand";
 import { shallow } from "zustand/shallow";
+import { identitySelector } from "../utils";
 import { useSelectorWithEquality } from "./useSelectorWithEquality";
 import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
 
@@ -62,7 +63,7 @@ export function createResolvedStoreHooks<TState, TMutators extends Array<StoreMu
   function useResolvedStorePlain<T>(selector: (state: TState) => T): T;
   function useResolvedStorePlain<T>(selector?: (state: TState) => T): T | TState {
     const store = useResolvedStoreApi();
-    const actualSelector = selector ?? ((state: TState) => state);
+    const actualSelector = selector ?? identitySelector<TState>;
     return useStore<typeof store, T | TState>(store, actualSelector);
   }
 

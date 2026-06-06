@@ -3,7 +3,6 @@ import { createStoreProvider } from "../providers";
 import { createShallowStore } from "./createShallowStore";
 import type {
   MutatorsStateCreator,
-  StoreApiWithMutators,
   StoreMutatorTuple,
   StoreProviderResult,
   StoreToolkit,
@@ -53,15 +52,10 @@ export function createStoreToolkit<TState, TMutators extends Array<StoreMutatorT
   // Use the shared provider's hooks for resolution
   const { useContextStoreOptional } = provider;
 
-  // Helper to safely get context store (returns null if outside provider)
-  function useSafeContextStore(): StoreApiWithMutators<TState, TMutators> | null {
-    return useContextStoreOptional();
-  }
-
   // Create resolution hooks
   const { useResolvedStoreApi, useResolvedValue, useResolvedStorePlain } = createResolvedStoreHooks(
     useStoreApi,
-    useSafeContextStore
+    useContextStoreOptional
   );
 
   return {

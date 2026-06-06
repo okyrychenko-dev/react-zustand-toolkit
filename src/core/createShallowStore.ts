@@ -1,6 +1,7 @@
 import { createStore, useStore } from "zustand";
 import { shallow } from "zustand/shallow";
 import { useSelectorWithEquality } from "../hooks";
+import { identitySelector } from "../utils";
 import type {
   MutatorsStateCreator,
   ShallowStoreBindings,
@@ -166,7 +167,7 @@ export function createShallowStore<TState, TMutators extends Array<StoreMutatorT
   function useStorePlain(): TState;
   function useStorePlain<T>(selector: (state: TState) => T): T;
   function useStorePlain<T>(selector?: (state: TState) => T): T | TState {
-    const actualSelector = selector ?? ((state: TState) => state);
+    const actualSelector = selector ?? identitySelector<TState>;
     return useStore<typeof storeApi, T | TState>(storeApi, actualSelector);
   }
 
