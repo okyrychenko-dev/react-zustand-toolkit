@@ -1,6 +1,6 @@
 {
   "name": "@okyrychenko-dev/react-zustand-toolkit",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "description": "Type-safe Zustand helpers for shallow-first selectors, isolated providers, and resolved store hooks",
   "main": "./dist/index.js",
@@ -50,7 +50,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/okyrychenko-dev/react-zustand-toolkit"
+    "url": "git+https://github.com/okyrychenko-dev/react-zustand-toolkit.git"
   },
   "bugs": {
     "url": "https://github.com/okyrychenko-dev/react-zustand-toolkit/issues"

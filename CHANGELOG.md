@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-25
+
+### Fixed
+
+- Stabilized shallow-first selector results across parent re-renders for global,
+  provider, and resolved store hooks.
+- Reset shallow selector caches when a resolved hook switches between global and
+  provider store instances.
+- Preserved asynchronous transition actions in the React 19 transition scope
+  until their promises settle.
+
+### Changed
+
+- Documented direct use of `createResolvedStoreHooks` for custom store and
+  provider integrations.
+- `onStoreReady` may now be supplied after the first render and still runs once
+  after that render commits, provided no ready callback has already run.
+- When both lifecycle callbacks are supplied, `onStoreReady` takes precedence
+  over the deprecated `onStoreCreate` alias.
+- Simplified plain-selector and resolved-store hook internals without changing
+  their public APIs.
+- Added React 19 coverage confirming `useActionStateAdapter` invokes the latest
+  action passed after a re-render.
+
 ## [0.4.1] - 2026-05-27
 
 ### Added
@@ -124,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.2.0...v0.3.0

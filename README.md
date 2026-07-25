@@ -14,6 +14,9 @@
 - `createStoreProvider` for isolated store instances in React context
 - `createStoreToolkit` for both patterns together, plus resolved hooks that work inside and outside a provider
 
+For custom integrations, `createResolvedStoreHooks` is also available to compose
+resolved hooks from an existing global store and an optional context-store hook.
+
 It does not ship its own DevTools runtime for providers.
 If you want Zustand Redux DevTools, apply `devtools(...)` in the store creator itself.
 
@@ -191,6 +194,9 @@ Returns:
 
 `useStore`, `useContextStore`, and `useResolvedValue` keep the previous selected value when the equality check passes.
 By default they use `zustand/shallow`.
+The selected reference also remains stable across parent re-renders. If a
+resolved hook switches between its global and provider store, its cached value is
+reset for the newly selected store.
 
 This is useful for object and array picks:
 
@@ -240,6 +246,47 @@ function Status() {
   return <button onClick={() => store.getState().increment()}>{value}</button>;
 }
 ```
+
+### `createResolvedStoreHooks`
+
+Use this lower-level factory when you already own the global store and provider
+integration, but still need hooks that select the provider store when present and
+otherwise use the global store. Most applications should use
+`createStoreToolkit`, which configures this for you.
+
+```tsx
+import {
+  createResolvedStoreHooks,
+  createShallowStore,
+  createStoreProvider,
+} from "@okyrychenko-dev/react-zustand-toolkit";
+
+interface PreferencesStore {
+  theme: "light" | "dark";
+}
+
+const { useStoreApi } = createShallowStore<PreferencesStore>(() => ({
+  theme: "light",
+}));
+
+const { useContextStoreOptional } = createStoreProvider<PreferencesStore>(() => ({
+  theme: "light",
+}), "Preferences");
+
+const { useResolvedValue } = createResolvedStoreHooks(useStoreApi, useContextStoreOptional);
+
+function ThemeLabel() {
+  const theme = useResolvedValue((state) => state.theme);
+
+  return <span>{theme}</span>;
+}
+```
+
+It returns the same resolved hook family used by `createStoreToolkit`:
+
+- `useResolvedStoreApi()` and its deprecated `useResolvedStore()` alias
+- `useResolvedValue()` and its deprecated `useResolvedStoreWithSelector()` alias
+- `useResolvedStorePlain()`
 
 ## Provider Lifecycle
 
@@ -420,6 +467,8 @@ const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(
 
 `createTransitionAction` supports synchronous and asynchronous actions. In React 19,
 an async action remains part of the transition until its returned promise settles.
+`useActionStateAdapter` always invokes the latest action supplied to the hook,
+including after a re-render.
 
 ## Development
 
