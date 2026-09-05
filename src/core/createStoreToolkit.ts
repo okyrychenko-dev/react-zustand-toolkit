@@ -1,12 +1,9 @@
 import { createResolvedStoreHooks } from "../hooks";
 import { createStoreProvider } from "../providers";
 import { createShallowStore } from "./createShallowStore";
-import type {
-  MutatorsStateCreator,
-  StoreMutatorTuple,
-  StoreProviderResult,
-  StoreToolkit,
-} from "../types";
+import type { StoreProviderResult } from "../providers";
+import type { MutatorsStateCreator, StoreMutatorTuple } from "../types";
+import type { StoreToolkit } from "./createStoreToolkit.types";
 
 /**
  * Creates a complete Zustand store toolkit with global store, provider, and resolution hooks
@@ -44,19 +41,11 @@ export function createStoreToolkit<TState, TMutators extends Array<StoreMutatorT
     return provider;
   }
 
-  // Backward-compatible alias
-  function createProvider(): StoreProviderResult<TState, TMutators> {
-    return getProvider();
-  }
-
   // Use the shared provider's hooks for resolution
   const { useContextStoreOptional } = provider;
 
   // Create resolution hooks
-  const { useResolvedStoreApi, useResolvedValue, useResolvedStorePlain } = createResolvedStoreHooks(
-    useStoreApi,
-    useContextStoreOptional
-  );
+  const resolvedBindings = createResolvedStoreHooks(useStoreApi, useContextStoreOptional);
 
   return {
     useStore,
@@ -64,11 +53,6 @@ export function createStoreToolkit<TState, TMutators extends Array<StoreMutatorT
     useStoreApi,
     provider,
     getProvider,
-    createProvider,
-    useResolvedStoreApi,
-    useResolvedStore: useResolvedStoreApi,
-    useResolvedValue,
-    useResolvedStoreWithSelector: useResolvedValue,
-    useResolvedStorePlain,
+    ...resolvedBindings,
   };
 }

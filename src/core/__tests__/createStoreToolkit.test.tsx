@@ -10,33 +10,20 @@ interface TestStore {
   increment: () => void;
 }
 
-interface LegacyToolkitApi {
-  createProvider: () => { Provider: (props: { children: ReactNode }) => ReactNode };
-  useResolvedStore: () => unknown;
-  useResolvedStoreWithSelector: <T>(
-    selector: (state: TestStore) => T,
-    equalityFn?: (a: T, b: T) => boolean
-  ) => T;
-}
-
 describe("createStoreToolkit", () => {
   it("should create complete toolkit", () => {
     const toolkit = createStoreToolkit<TestStore>((set) => ({
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
 
     expect(toolkit.useStore).toBeDefined();
     expect(toolkit.useStorePlain).toBeDefined();
     expect(toolkit.useStoreApi).toBeDefined();
     expect(toolkit.provider).toBeDefined();
     expect(toolkit.getProvider).toBeDefined();
-    expect(legacyToolkit.createProvider).toBeDefined();
     expect(toolkit.useResolvedStoreApi).toBeDefined();
-    expect(legacyToolkit.useResolvedStore).toBeDefined();
     expect(toolkit.useResolvedValue).toBeDefined();
-    expect(legacyToolkit.useResolvedStoreWithSelector).toBeDefined();
     expect(toolkit.useResolvedStorePlain).toBeDefined();
   });
 
@@ -45,10 +32,7 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
-
     expect(toolkit.provider).toBe(toolkit.getProvider());
-    expect(toolkit.getProvider()).toBe(legacyToolkit.createProvider());
   });
 
   it("should work with global store", () => {
@@ -83,16 +67,13 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
-
     const { Provider } = toolkit.provider;
 
     const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
 
-    const { result } = renderHook(
-      () => legacyToolkit.useResolvedStoreWithSelector((state) => state.count),
-      { wrapper }
-    );
+    const { result } = renderHook(() => toolkit.useResolvedValue((state) => state.count), {
+      wrapper,
+    });
 
     expect(result.current).toBe(0);
   });
@@ -102,20 +83,18 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
-
     const { Provider } = toolkit.provider;
 
     // Global store
     const { result: globalResult } = renderHook(() =>
-      legacyToolkit.useResolvedStoreWithSelector((state) => state.count)
+      toolkit.useResolvedValue((state) => state.count)
     );
 
     // Provider store
     const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
 
     const { result: providerResult } = renderHook(
-      () => legacyToolkit.useResolvedStoreWithSelector((state) => state.count),
+      () => toolkit.useResolvedValue((state) => state.count),
       { wrapper }
     );
 
@@ -138,10 +117,8 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
-
     const { result } = renderHook(() =>
-      legacyToolkit.useResolvedStoreWithSelector(
+      toolkit.useResolvedValue(
         (state) => state.count,
         () => true
       )
@@ -161,14 +138,11 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
-    const legacyToolkit: LegacyToolkitApi = toolkit;
-
     const { result } = renderHook(() => toolkit.useResolvedStorePlain((state) => state.count));
     const { result: apiResult } = renderHook(() => toolkit.useResolvedStoreApi());
 
     expect(result.current).toBe(0);
     expect(apiResult.current).toBe(toolkit.useStoreApi);
-    expect(toolkit.useResolvedValue).toBe(legacyToolkit.useResolvedStoreWithSelector);
   });
 
   it("should expose full resolved state without selector outside provider", () => {

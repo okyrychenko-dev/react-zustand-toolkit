@@ -9,10 +9,6 @@ interface TestStore {
   increment: () => void;
 }
 
-interface LegacyProviderProps {
-  onStoreCreate?: () => void;
-}
-
 describe("createStoreProvider", () => {
   it("should create provider and context hooks", () => {
     const {
@@ -223,31 +219,6 @@ describe("createStoreProvider", () => {
 
     await waitFor(() => {
       expect(onStoreReady).toHaveBeenCalledOnce();
-    });
-  });
-
-  it("should keep deprecated onStoreCreate as onStoreReady alias", async () => {
-    let calls = 0;
-
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
-      value: 0,
-      increment: () => set((state) => ({ value: state.value + 1 })),
-    }));
-
-    const legacyProps: LegacyProviderProps = {
-      onStoreCreate: () => {
-        calls += 1;
-      },
-    };
-
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <Provider {...legacyProps}>{children}</Provider>
-    );
-
-    renderHook(() => useContextStore((state) => state.value), { wrapper });
-
-    await waitFor(() => {
-      expect(calls).toBe(1);
     });
   });
 

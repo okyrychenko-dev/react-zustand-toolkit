@@ -29,6 +29,21 @@ If you want Zustand Redux DevTools, apply `devtools(...)` in the store creator i
 - Full TypeScript inference with Zustand middleware support
 - React 19 helpers for transitions, optimistic updates, and action state adapters
 
+## Store Access Matrix
+
+Each factory uses the same value/plain/API naming pattern:
+
+| Store source | Shallow-first value | Plain value             | Store API             |
+| ------------ | ------------------- | ----------------------- | --------------------- |
+| Global       | `useStore`          | `useStorePlain`         | `useStoreApi`         |
+| Provider     | `useContextStore`   | `useContextStorePlain`  | `useContextStoreApi`  |
+| Resolved     | `useResolvedValue`  | `useResolvedStorePlain` | `useResolvedStoreApi` |
+
+The provider factory also exposes `useContextStoreOptional` for integrations that
+need to detect whether a matching provider is present. The toolkit exposes its
+shared provider bindings through `provider`; `getProvider()` returns that same
+object when function-based access is useful.
+
 ## Installation
 
 ```bash
@@ -121,11 +136,17 @@ interface WizardStore {
   next: () => void;
 }
 
-const { Provider: WizardProvider, useContextStore, useContextStoreApi } =
-  createStoreProvider<WizardStore>((set) => ({
+const {
+  Provider: WizardProvider,
+  useContextStore,
+  useContextStoreApi,
+} = createStoreProvider<WizardStore>(
+  (set) => ({
     step: 1,
     next: () => set((state) => ({ step: state.step + 1 })),
-  }), "Wizard");
+  }),
+  "Wizard"
+);
 
 function WizardStep() {
   const step = useContextStore((state) => state.step);
@@ -162,10 +183,13 @@ interface CartStore {
   addItem: (item: string) => void;
 }
 
-const cartToolkit = createStoreToolkit<CartStore>((set) => ({
-  items: [],
-  addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-}), { name: "Cart" });
+const cartToolkit = createStoreToolkit<CartStore>(
+  (set) => ({
+    items: [],
+    addItem: (item) => set((state) => ({ items: [...state.items, item] })),
+  }),
+  { name: "Cart" }
+);
 
 export const { useResolvedValue: useCart } = cartToolkit;
 export const { Provider: CartProvider } = cartToolkit.provider;
@@ -183,7 +207,6 @@ Returns:
 - `useStoreApi`
 - `provider`
 - `getProvider()`
-- `createProvider()` deprecated alias
 - `useResolvedStoreApi()`
 - `useResolvedValue()`
 - `useResolvedStorePlain()`
@@ -269,9 +292,12 @@ const { useStoreApi } = createShallowStore<PreferencesStore>(() => ({
   theme: "light",
 }));
 
-const { useContextStoreOptional } = createStoreProvider<PreferencesStore>(() => ({
-  theme: "light",
-}), "Preferences");
+const { useContextStoreOptional } = createStoreProvider<PreferencesStore>(
+  () => ({
+    theme: "light",
+  }),
+  "Preferences"
+);
 
 const { useResolvedValue } = createResolvedStoreHooks(useStoreApi, useContextStoreOptional);
 
@@ -284,9 +310,27 @@ function ThemeLabel() {
 
 It returns the same resolved hook family used by `createStoreToolkit`:
 
-- `useResolvedStoreApi()` and its deprecated `useResolvedStore()` alias
-- `useResolvedValue()` and its deprecated `useResolvedStoreWithSelector()` alias
+- `useResolvedStoreApi()`
+- `useResolvedValue()`
 - `useResolvedStorePlain()`
+
+## Upgrading After Deprecated Alias Removal
+
+The deprecated compatibility names have been removed. Replace them with their
+canonical equivalents:
+
+| Removed name                     | Replacement                                   |
+| -------------------------------- | --------------------------------------------- |
+| `toolkit.createProvider()`       | `toolkit.provider` or `toolkit.getProvider()` |
+| `useContext()`                   | `useContextStoreApi()`                        |
+| `useOptionalContext()`           | `useContextStoreOptional()`                   |
+| `useResolvedStore()`             | `useResolvedStoreApi()`                       |
+| `useResolvedStoreWithSelector()` | `useResolvedValue()`                          |
+| `onStoreCreate`                  | `onStoreReady`                                |
+
+`onStoreReady` runs after the provider commits and at most once for each provider
+store instance. Use `onStoreInit` when state must be initialized synchronously
+during store creation.
 
 ## Provider Lifecycle
 
@@ -316,11 +360,6 @@ const { Provider } = createStoreProvider<AppStore>((set) => ({
   <App />
 </Provider>;
 ```
-
-Deprecated alias:
-
-- `onStoreCreate` maps to the post-commit `onStoreReady` behavior and is ignored
-  when `onStoreReady` is also provided
 
 ## Middleware Support
 
@@ -371,10 +410,7 @@ interface FilterStore {
   setQuery: (query: string) => void;
 }
 
-const { useStoreApi } = createShallowStore<
-  FilterStore,
-  [["zustand/subscribeWithSelector", never]]
->(
+const { useStoreApi } = createShallowStore<FilterStore, [["zustand/subscribeWithSelector", never]]>(
   subscribeWithSelector((set) => ({
     query: "",
     setQuery: (query) => set({ query }),
@@ -389,51 +425,6 @@ const unsubscribe = useStoreApi.subscribe(
 );
 
 unsubscribe();
-```
-
-## Migration
-
-Deprecated names still exist for compatibility, but new code should prefer the current API.
-
-### Provider access
-
-```tsx
-const { Provider } = toolkit.provider;
-```
-
-Old aliases:
-
-```tsx
-const { Provider } = toolkit.getProvider();
-const { Provider: LegacyProvider } = toolkit.createProvider();
-```
-
-### Raw provider hooks
-
-```tsx
-const store = useContextStoreApi();
-const maybeStore = useContextStoreOptional();
-```
-
-Old aliases:
-
-```tsx
-const store = useContext();
-const maybeStore = useOptionalContext();
-```
-
-### Resolved hooks
-
-```tsx
-const value = useResolvedValue((state) => state.value);
-const store = useResolvedStoreApi();
-```
-
-Old aliases:
-
-```tsx
-const value = useResolvedStoreWithSelector((state) => state.value);
-const store = useResolvedStore();
 ```
 
 ## React 19 Helpers
@@ -459,10 +450,10 @@ const [status, submit, isPending] = useActionStateAdapter(async (payload: FormDa
   return "saved";
 }, "idle");
 
-const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(
-  todos,
-  (current, nextTodo) => [...current, nextTodo]
-);
+const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(todos, (current, nextTodo) => [
+  ...current,
+  nextTodo,
+]);
 ```
 
 `createTransitionAction` supports synchronous and asynchronous actions. In React 19,

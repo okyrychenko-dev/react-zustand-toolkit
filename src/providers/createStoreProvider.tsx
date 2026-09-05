@@ -1,20 +1,8 @@
 import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createStore } from "zustand";
 import { useStoreSelection, useStoreSelectionPlain } from "../hooks";
-import type {
-  MutatorsStateCreator,
-  StoreApiWithMutators,
-  StoreMutatorTuple,
-  StoreProviderProps,
-  StoreProviderResult,
-} from "../types";
-
-type ProviderRuntimeProps<TState, TMutators extends Array<StoreMutatorTuple>> = Omit<
-  StoreProviderProps<TState, TMutators>,
-  "onStoreCreate"
-> & {
-  onStoreCreate?: (store: StoreApiWithMutators<TState, TMutators>) => void;
-};
+import type { MutatorsStateCreator, StoreApiWithMutators, StoreMutatorTuple } from "../types";
+import type { StoreProviderProps, StoreProviderResult } from "./createStoreProvider.types";
 
 /**
  * Creates a React Context provider for isolated Zustand store instances.
@@ -168,8 +156,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     children,
     onStoreInit,
     onStoreReady,
-    onStoreCreate,
-  }: ProviderRuntimeProps<TState, TMutators>): ReactNode {
+  }: StoreProviderProps<TState, TMutators>): ReactNode {
     const isReadyRef = useRef(false);
     const [store] = useState<StoreApiWithMutators<TState, TMutators>>(() => {
       const newStore = createStore<TState, TMutators>(storeCreator);
@@ -178,13 +165,11 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     });
 
     useEffect(() => {
-      const readyCallback = onStoreReady ?? onStoreCreate;
-
-      if (!isReadyRef.current && readyCallback) {
-        readyCallback(store);
+      if (!isReadyRef.current && onStoreReady) {
+        onStoreReady(store);
         isReadyRef.current = true;
       }
-    }, [onStoreCreate, onStoreReady, store]);
+    }, [onStoreReady, store]);
 
     return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
   }
@@ -234,11 +219,9 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
   return {
     Provider,
     useContextStoreApi: useStoreContext,
-    useContext: useStoreContext,
     useContextStore: useContextStoreWithSelector,
     useContextStorePlain,
     useIsInsideProvider,
     useContextStoreOptional,
-    useOptionalContext: useContextStoreOptional,
   };
 }
