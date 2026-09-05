@@ -1,4 +1,5 @@
 export { createResolvedStoreHooks } from "./createResolvedStoreHooks";
+export type { ResolvedStoreBindings } from "./createResolvedStoreHooks.types";
 export { useSelectorWithEquality } from "./useSelectorWithEquality";
 export type {
   UseSelectorWithEqualityEqualityFn,
@@ -7,3 +8,4 @@ export type {
   UseSelectorWithEqualitySelector,
 } from "./useSelectorWithEquality";
 export { useStoreSelection, useStoreSelectionPlain } from "./storeSelection";
+export type { StorePlainHook, StoreValueHook } from "./storeSelection";

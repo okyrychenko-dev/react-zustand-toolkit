@@ -1,5 +1,6 @@
 import { useStoreSelection, useStoreSelectionPlain } from "./storeSelection";
 import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
+import type { ResolvedStoreBindings } from "./createResolvedStoreHooks.types";
 
 /**
  * Creates hooks that resolve between context store and global store
@@ -16,22 +17,7 @@ import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
 export function createResolvedStoreHooks<TState, TMutators extends Array<StoreMutatorTuple> = []>(
   globalStoreApi: StoreApiWithMutators<TState, TMutators>,
   useContextStore: () => StoreApiWithMutators<TState, TMutators> | null
-): {
-  useResolvedStoreApi: () => StoreApiWithMutators<TState, TMutators>;
-  useResolvedStore: () => StoreApiWithMutators<TState, TMutators>;
-  useResolvedValue: {
-    (): TState;
-    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
-  };
-  useResolvedStoreWithSelector: {
-    (): TState;
-    <T>(selector: (state: TState) => T, equalityFn?: (a: T, b: T) => boolean): T;
-  };
-  useResolvedStorePlain: {
-    (): TState;
-    <T>(selector: (state: TState) => T): T;
-  };
-} {
+): ResolvedStoreBindings<TState, TMutators> {
   function useResolvedStoreApi(): StoreApiWithMutators<TState, TMutators> {
     const contextStore = useContextStore();
     return contextStore ?? globalStoreApi;
@@ -59,9 +45,7 @@ export function createResolvedStoreHooks<TState, TMutators extends Array<StoreMu
 
   return {
     useResolvedStoreApi,
-    useResolvedStore: useResolvedStoreApi,
     useResolvedValue,
-    useResolvedStoreWithSelector: useResolvedValue,
     useResolvedStorePlain,
   };
 }
