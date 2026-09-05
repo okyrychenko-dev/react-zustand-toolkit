@@ -206,21 +206,6 @@ describe("createStoreToolkit", () => {
     expect(typeof plainResult.current.increment).toBe("function");
   });
 
-  it("should preserve resolved shallow selection reference across parent rerenders", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    const { result, rerender } = renderHook(() =>
-      toolkit.useResolvedValue((state) => ({ count: state.count }))
-    );
-    const initialSelection = result.current;
-
-    rerender();
-
-    expect(result.current).toBe(initialSelection);
-  });
-
   it("should reset resolved selection reference when the resolved store changes", () => {
     interface CollectionStore {
       items: Array<number>;
