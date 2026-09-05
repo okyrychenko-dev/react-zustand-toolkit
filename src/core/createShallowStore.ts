@@ -1,7 +1,11 @@
 import { createStore } from "zustand";
 import { createStoreSelectionBindings } from "../hooks";
-import type { MutatorsStateCreator, StoreApiWithMutators, StoreMutatorTuple } from "../types";
-import type { ShallowStoreBindings } from "./createShallowStore.types";
+import type {
+  MutatorsStateCreator,
+  ShallowStoreBindings,
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+} from "../types";
 
 /**
  * Creates a Zustand store with shallow-first selector semantics.

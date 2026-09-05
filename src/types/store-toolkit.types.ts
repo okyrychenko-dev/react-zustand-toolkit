@@ -1,7 +1,6 @@
-import type { ResolvedStoreBindings } from "../hooks";
-import type { StoreProviderResult } from "../providers";
-import type { StoreMutatorTuple } from "../types";
-import type { ShallowStoreBindings } from "./createShallowStore.types";
+import type { ResolvedStoreBindings, ShallowStoreBindings } from "./store-bindings.types";
+import type { StoreProviderResult } from "./store-provider.types";
+import type { StoreMutatorTuple } from "./store.types";
 
 /** Combined global, provider, and resolved store bindings. */
 export interface StoreToolkit<TState, TMutators extends Array<StoreMutatorTuple> = []>
