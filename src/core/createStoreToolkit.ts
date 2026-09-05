@@ -1,9 +1,12 @@
 import { createResolvedStoreHooks } from "../hooks";
 import { createStoreProvider } from "../providers";
 import { createShallowStore } from "./createShallowStore";
-import type { StoreProviderResult } from "../providers";
-import type { MutatorsStateCreator, StoreMutatorTuple } from "../types";
-import type { StoreToolkit } from "./createStoreToolkit.types";
+import type {
+  MutatorsStateCreator,
+  StoreMutatorTuple,
+  StoreProviderResult,
+  StoreToolkit,
+} from "../types";
 
 /**
  * Creates a complete Zustand store toolkit with global store, provider, and resolution hooks

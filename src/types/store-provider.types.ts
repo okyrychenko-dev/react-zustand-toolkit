@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { StorePlainHook, StoreValueHook } from "../hooks";
-import type { StoreApiWithMutators, StoreMutatorTuple } from "../types";
+import type { StorePlainHook, StoreValueHook } from "./store-hooks.types";
+import type { StoreApiWithMutators, StoreMutatorTuple } from "./store.types";
 
 /** Configuration for store provider lifecycle. */
 export interface StoreProviderConfig<

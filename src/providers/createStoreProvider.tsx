@@ -1,8 +1,13 @@
 import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createStore } from "zustand";
-import { useStoreSelection, useStoreSelectionPlain } from "../hooks";
-import type { MutatorsStateCreator, StoreApiWithMutators, StoreMutatorTuple } from "../types";
-import type { StoreProviderProps, StoreProviderResult } from "./createStoreProvider.types";
+import { createStoreSelectionBindings } from "../hooks";
+import type {
+  MutatorsStateCreator,
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+  StoreProviderProps,
+  StoreProviderResult,
+} from "../types";
 
 /**
  * Creates a React Context provider for isolated Zustand store instances.
@@ -193,33 +198,13 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     return useContext(StoreContext);
   }
 
-  function useContextStoreWithSelector(): TState;
-  function useContextStoreWithSelector<T>(selector: (state: TState) => T): T;
-  function useContextStoreWithSelector<T>(
-    selector: (state: TState) => T,
-    equalityFn: (a: T, b: T) => boolean
-  ): T;
-  function useContextStoreWithSelector<T>(
-    selector?: (state: TState) => T,
-    equalityFn?: (a: T | TState, b: T | TState) => boolean
-  ): T | TState {
-    const store = useStoreContext();
-
-    return useStoreSelection(store, selector, equalityFn);
-  }
-
-  function useContextStorePlain(): TState;
-  function useContextStorePlain<T>(selector: (state: TState) => T): T;
-  function useContextStorePlain<T>(selector?: (state: TState) => T): T | TState {
-    const store = useStoreContext();
-
-    return useStoreSelectionPlain(store, selector);
-  }
+  const { useStoreValue: useContextStore, useStorePlain: useContextStorePlain } =
+    createStoreSelectionBindings(useStoreContext);
 
   return {
     Provider,
     useContextStoreApi: useStoreContext,
-    useContextStore: useContextStoreWithSelector,
+    useContextStore,
     useContextStorePlain,
     useIsInsideProvider,
     useContextStoreOptional,
