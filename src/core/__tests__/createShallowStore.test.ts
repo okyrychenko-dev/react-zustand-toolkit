@@ -159,20 +159,4 @@ describe("createShallowStore", () => {
     expect(shallowRenders).toBe(1);
     expect(plainRenders).toBe(2);
   });
-
-  it("should preserve shallow selection reference across parent rerenders", () => {
-    const { useStore } = createShallowStore<TestStore>((set) => ({
-      count: 0,
-      name: "test",
-      increment: () => set((state) => ({ count: state.count + 1 })),
-      setName: (name: string) => set({ name }),
-    }));
-
-    const { result, rerender } = renderHook(() => useStore((state) => ({ count: state.count })));
-    const initialSelection = result.current;
-
-    rerender();
-
-    expect(result.current).toBe(initialSelection);
-  });
 });

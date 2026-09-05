@@ -6,3 +6,4 @@ export type {
   UseSelectorWithEqualityReturn,
   UseSelectorWithEqualitySelector,
 } from "./useSelectorWithEquality";
+export { useStoreSelection, useStoreSelectionPlain } from "./storeSelection";
