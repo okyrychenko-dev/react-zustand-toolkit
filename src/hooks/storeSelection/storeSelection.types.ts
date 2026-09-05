@@ -14,3 +14,10 @@ export interface StorePlainHook<TState> {
   (): TState;
   <T>(selector: (state: TState) => T): T;
 }
+
+export type StoreResolver<TState> = () => SelectionStore<TState>;
+
+export interface StoreSelectionBindings<TState> {
+  useStoreValue: StoreValueHook<TState>;
+  useStorePlain: StorePlainHook<TState>;
+}

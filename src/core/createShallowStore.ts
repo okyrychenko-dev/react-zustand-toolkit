@@ -1,5 +1,5 @@
 import { createStore } from "zustand";
-import { useStoreSelection, useStoreSelectionPlain } from "../hooks";
+import { createStoreSelectionBindings } from "../hooks";
 import type { MutatorsStateCreator, StoreApiWithMutators, StoreMutatorTuple } from "../types";
 import type { ShallowStoreBindings } from "./createShallowStore.types";
 
@@ -139,27 +139,10 @@ export function createShallowStore<TState, TMutators extends Array<StoreMutatorT
     storeCreator
   );
 
-  function useShallowStore(): TState;
-  function useShallowStore<T>(selector: (state: TState) => T): T;
-  function useShallowStore<T>(
-    selector: (state: TState) => T,
-    equalityFn: (a: T, b: T) => boolean
-  ): T;
-  function useShallowStore<T>(
-    selector?: (state: TState) => T,
-    equalityFn?: (a: T | TState, b: T | TState) => boolean
-  ): T | TState {
-    return useStoreSelection(storeApi, selector, equalityFn);
-  }
-
-  function useStorePlain(): TState;
-  function useStorePlain<T>(selector: (state: TState) => T): T;
-  function useStorePlain<T>(selector?: (state: TState) => T): T | TState {
-    return useStoreSelectionPlain(storeApi, selector);
-  }
+  const { useStoreValue: useStore, useStorePlain } = createStoreSelectionBindings(() => storeApi);
 
   return {
-    useStore: useShallowStore,
+    useStore,
     useStorePlain,
     useStoreApi: storeApi,
   };

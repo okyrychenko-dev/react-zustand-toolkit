@@ -7,5 +7,11 @@ export type {
   UseSelectorWithEqualityReturn,
   UseSelectorWithEqualitySelector,
 } from "./useSelectorWithEquality";
+export { createStoreSelectionBindings } from "./storeSelection";
 export { useStoreSelection, useStoreSelectionPlain } from "./storeSelection";
-export type { StorePlainHook, StoreValueHook } from "./storeSelection";
+export type {
+  StorePlainHook,
+  StoreResolver,
+  StoreSelectionBindings,
+  StoreValueHook,
+} from "./storeSelection";
