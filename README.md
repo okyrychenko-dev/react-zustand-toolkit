@@ -47,7 +47,7 @@ object when function-based access is useful.
 ## Installation
 
 ```bash
-npm install @okyrychenko-dev/react-zustand-toolkit zustand
+pnpm add @okyrychenko-dev/react-zustand-toolkit zustand
 ```
 
 ## Quick Start
@@ -464,10 +464,10 @@ including after a re-render.
 ## Development
 
 ```bash
-npm install
-npm run typecheck
-npm run test:run
-npm run build
+pnpm install --frozen-lockfile
+pnpm run check
+pnpm run test:coverage
+pnpm run package:check
 ```
 
 ## License

@@ -13,24 +13,20 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache: npm
+          node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm run test:run
+      - name: Verify release contract
+        run: pnpm run release:check
 
       - name: Verify tag matches package.json version
         run: |
@@ -41,10 +37,7 @@ jobs:
             exit 1
           fi
 
-      - name: Build
-        run: npm run build
-
       - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Tag checkouts use a detached HEAD, so pnpm's branch check cannot apply;
+        # the explicit tag/package-version check above remains authoritative.
+        run: pnpm publish --access public --provenance --no-git-checks
