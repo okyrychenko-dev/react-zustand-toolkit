@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added packed-package verification for ESM, CommonJS, declarations, runtime dependencies, and side-effect safety.
+
+### Changed
+
+- Standardized package development, CI, and release workflows on pnpm 11.
+- Adopted `@okyrychenko-dev/type-utils` as a direct runtime dependency for shared guards.
+- Aligned package exports and validation tooling with the other maintained `@okyrychenko-dev` libraries.
+
 ### Removed
 
 - Removed deprecated provider, resolved-store, and lifecycle aliases.

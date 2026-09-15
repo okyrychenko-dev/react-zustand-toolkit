@@ -1,3 +1,4 @@
+import { isDefined } from "@okyrychenko-dev/type-utils";
 import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createStore } from "zustand";
 import { createStoreSelectionBindings } from "../hooks";
@@ -182,7 +183,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
   function useStoreContext(): StoreApiWithMutators<TState, TMutators> {
     const store = useContext(StoreContext);
 
-    if (store === null) {
+    if (!isDefined(store)) {
       throw new Error(`${contextName} store hooks must be used within a ${contextName}Provider`);
     }
 
@@ -191,7 +192,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
 
   function useIsInsideProvider(): boolean {
     const store = useContext(StoreContext);
-    return store !== null;
+    return isDefined(store);
   }
 
   function useContextStoreOptional(): StoreApiWithMutators<TState, TMutators> | null {

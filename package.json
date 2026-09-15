@@ -1,34 +1,44 @@
 {
   "name": "@okyrychenko-dev/react-zustand-toolkit",
   "version": "0.4.2",
+  "packageManager": "pnpm@11.21.0",
   "type": "module",
   "description": "Type-safe Zustand helpers for shallow-first selectors, isolated providers, and resolved store hooks",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "sideEffects": false,
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build",
+    "package:check": "node scripts/check-packed-package.mjs && attw --pack . && publint",
+    "release:check": "pnpm run check && pnpm run package:check",
+    "prepublishOnly": "pnpm run clean && pnpm run build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src scripts --ext .ts,.tsx,.mjs",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "format": "npm run lint:fix && prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "npm run lint && prettier --check \"src/**/*.{ts,tsx}\"",
+    "check": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run test:run && pnpm run build",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"scripts/**/*.{mjs,ts}\" \"*.{json,ts,mjs}\" \".github/workflows/*.yml\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.{mjs,ts}\" \"*.{json,ts,mjs}\" \".github/workflows/*.yml\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -65,15 +75,17 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.4",
     "@types/react": "^19.2.5",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
-    "@vitest/coverage-v8": "^4.0.9",
-    "@vitest/ui": "^4.0.9",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
+    "esbuild": "0.27.7",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -82,14 +94,15 @@
     "happy-dom": "^20.0.10",
     "husky": "^9.1.7",
     "prettier": "^3.6.2",
+    "publint": "^0.3.24",
     "react": "^19.2.0",
     "tsup": "^8.5.1",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.46.4",
-    "vitest": "^4.0.9",
+    "vitest": "^4.1.11",
     "zustand": "^5.0.8"
   },
-  "allowScripts": {
-    "esbuild@0.27.2": true
+  "dependencies": {
+    "@okyrychenko-dev/type-utils": "^0.1.2"
   }
 }

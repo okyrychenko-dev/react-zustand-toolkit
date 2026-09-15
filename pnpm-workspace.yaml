@@ -1,0 +1,8 @@
+# pnpm 11 reads project settings from this file; no additional workspace
+# packages or catalogs are declared.
+allowBuilds:
+  esbuild: true
+# Keep the repository's newly published runtime dependency installable under
+# pnpm's minimum-release-age supply-chain policy.
+minimumReleaseAgeExclude:
+  - '@okyrychenko-dev/type-utils@0.1.2'

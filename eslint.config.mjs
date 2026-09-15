@@ -126,6 +126,22 @@ export default [
       "@typescript-eslint/no-invalid-void-type": "off",
     },
   },
+  {
+    ...tseslint.configs.disableTypeChecked,
+    files: ["scripts/**/*.mjs", "scripts/**/*.ts"],
+    rules: {
+      ...tseslint.configs.disableTypeChecked.rules,
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "no-console": "off",
+      "no-undef": "off",
+    },
+  },
+  {
+    files: ["src/type-tests/**/*.type-test.ts"],
+    rules: {
+      "@typescript-eslint/no-meaningless-void-operator": "off",
+    },
+  },
   prettier,
   // curly must come AFTER prettier — eslint-config-prettier disables it otherwise
   {
