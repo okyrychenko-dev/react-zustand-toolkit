@@ -1,4 +1,4 @@
-import { useStoreSelection, useStoreSelectionPlain } from "./useStoreSelection";
+import { useStoreSelection, useStoreSelectionPlain } from "./storeSelection.hooks";
 import type { StoreResolver, StoreSelectionBindings } from "./storeSelection.types";
 
 export function createStoreSelectionBindings<TState>(
