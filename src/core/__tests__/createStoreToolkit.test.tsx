@@ -21,7 +21,6 @@ describe("createStoreToolkit", () => {
     expect(toolkit.useStorePlain).toBeDefined();
     expect(toolkit.useStoreApi).toBeDefined();
     expect(toolkit.provider).toBeDefined();
-    expect(toolkit.getProvider).toBeDefined();
     expect(toolkit.useResolvedStoreApi).toBeDefined();
     expect(toolkit.useResolvedValue).toBeDefined();
     expect(toolkit.useResolvedStorePlain).toBeDefined();
@@ -32,6 +31,7 @@ describe("createStoreToolkit", () => {
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Verifies the compatibility path.
     expect(toolkit.provider).toBe(toolkit.getProvider());
   });
 

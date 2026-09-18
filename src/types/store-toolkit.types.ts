@@ -6,5 +6,9 @@ import type { StoreMutatorTuple } from "./store.types";
 export interface StoreToolkit<TState, TMutators extends Array<StoreMutatorTuple> = []>
   extends ShallowStoreBindings<TState, TMutators>, ResolvedStoreBindings<TState, TMutators> {
   provider: StoreProviderResult<TState, TMutators>;
+  /**
+   * @deprecated Use {@link provider} instead. This compatibility accessor will be removed in the
+   * next intentional major release.
+   */
   getProvider: () => StoreProviderResult<TState, TMutators>;
 }
