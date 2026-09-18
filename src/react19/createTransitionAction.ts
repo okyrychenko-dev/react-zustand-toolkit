@@ -5,6 +5,10 @@ import { startTransition } from "react";
  *
  * Async action promises are returned from the transition scope so React 19 can
  * keep the transition pending until the action settles.
+ *
+ * @deprecated Use React's `startTransition(() => action(...args))` directly. Return an async
+ * action's promise from the transition scope so the transition remains pending until it settles.
+ * This helper will be removed in the next intentional major release.
  */
 export function createTransitionAction<TArgs extends Array<unknown>>(
   action: (...args: TArgs) => void | Promise<void>

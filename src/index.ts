@@ -8,6 +8,7 @@ export { createStoreProvider } from "./providers";
 export { createResolvedStoreHooks } from "./hooks";
 
 // React 19 utilities
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Preserves compatibility exports until the next major release.
 export { createTransitionAction, useActionStateAdapter, useOptimisticReducer } from "./react19";
 
 // Types
