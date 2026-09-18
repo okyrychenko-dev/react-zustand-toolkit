@@ -27,7 +27,6 @@ If you want Zustand Redux DevTools, apply `devtools(...)` in the store creator i
 - Resolved hooks that choose context store first and fall back to global store
 - Optional custom equality for shallow-first selector hooks
 - Full TypeScript inference with Zustand middleware support
-- React 19 helpers for transitions, optimistic updates, and action state adapters
 
 ## Store Access Matrix
 
@@ -433,39 +432,70 @@ const unsubscribe = useStoreApi.subscribe(
 unsubscribe();
 ```
 
-## React 19 Helpers
+## Migrating from the Deprecated React 19 Helpers
+
+`createTransitionAction`, `useActionStateAdapter`, and `useOptimisticReducer`
+remain available for compatibility until the next intentional major release.
+They emit no runtime warnings. New code should compose React's supported
+primitives directly.
+
+Replace `createTransitionAction` with `startTransition`. Return an asynchronous
+action's promise from the transition scope so React keeps the transition pending
+until the action settles:
 
 ```tsx
-import {
-  createTransitionAction,
-  useActionStateAdapter,
-  useOptimisticReducer,
-} from "@okyrychenko-dev/react-zustand-toolkit";
+import { startTransition } from "react";
 
-const incrementInTransition = createTransitionAction(() => {
-  counterToolkit.useStoreApi.getState().increment();
-});
+function incrementInTransition(): void {
+  startTransition(() => {
+    counterToolkit.useStoreApi.getState().increment();
+  });
+}
 
-const saveInTransition = createTransitionAction(async () => {
-  await save();
-  counterToolkit.useStoreApi.setState({ saved: true });
-});
+function saveInTransition(): void {
+  startTransition(async () => {
+    await save();
+    counterToolkit.useStoreApi.setState({ saved: true });
+  });
+}
+```
 
-const [status, submit, isPending] = useActionStateAdapter(async (payload: FormData) => {
-  await save(payload);
-  return "saved";
-}, "idle");
+Replace `useActionStateAdapter` with `useActionState`. Define the reducer from
+the current `action` during each render so a re-render uses the latest action:
 
-const [optimisticTodos, addOptimisticTodo] = useOptimisticReducer(todos, (current, nextTodo) => [
+```tsx
+import { useActionState } from "react";
+
+const [status, submit, isPending] = useActionState(
+  (_previousStatus: string, payload: FormData) => action(payload),
+  "idle"
+);
+```
+
+Replace `useOptimisticReducer` with `useOptimistic` and dispatch optimistic
+updates within a transition:
+
+```tsx
+import { startTransition, useCallback, useOptimistic } from "react";
+
+const [optimisticTodos, dispatchOptimisticTodo] = useOptimistic(todos, (current, nextTodo) => [
   ...current,
   nextTodo,
 ]);
+
+const addOptimisticTodo = useCallback(
+  (todo: Todo) => {
+    startTransition(() => dispatchOptimisticTodo(todo));
+  },
+  [dispatchOptimisticTodo]
+);
 ```
 
-`createTransitionAction` supports synchronous and asynchronous actions. In React 19,
-an async action remains part of the transition until its returned promise settles.
-`useActionStateAdapter` always invokes the latest action supplied to the hook,
-including after a re-render.
+These helpers are generic React primitive compositions rather than Zustand Store
+selection or composition interfaces. Removing them leaves short, direct React
+calls instead of spreading domain complexity across consumers. Equivalent thin
+wrappers should not be reintroduced unless a future Store-specific requirement
+creates a deeper interface.
 
 ## Development
 

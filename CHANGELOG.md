@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized package development, CI, and release workflows on pnpm 11.
 - Adopted `@okyrychenko-dev/type-utils` as a direct runtime dependency for shared guards.
 - Aligned package exports and validation tooling with the other maintained `@okyrychenko-dev` libraries.
+- Deprecated `createTransitionAction`, `useActionStateAdapter`, and `useOptimisticReducer` in favor
+  of composing React's supported primitives directly. The helpers remain runtime-compatible without
+  warnings, and removal is deferred to the next intentional major release.
 - Deprecated `createStoreToolkit().getProvider()` in favor of the canonical `provider` property.
   The compatibility accessor still returns the same Provider bindings without runtime warnings;
   removal is deferred to the next intentional major release.

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- Characterizes the deprecated compatibility helper. */
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useOptimisticReducer } from "../useOptimisticReducer";

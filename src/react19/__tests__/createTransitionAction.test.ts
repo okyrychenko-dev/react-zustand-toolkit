@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- Characterizes the deprecated compatibility helper. */
 import { startTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTransitionAction } from "../createTransitionAction";
