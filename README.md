@@ -41,8 +41,9 @@ Each factory uses the same value/plain/API naming pattern:
 
 The provider factory also exposes `useContextStoreOptional` for integrations that
 need to detect whether a matching provider is present. The toolkit exposes its
-shared provider bindings through `provider`; `getProvider()` returns that same
-object when function-based access is useful.
+shared provider bindings through `provider`. The deprecated `getProvider()`
+compatibility accessor returns that same object and remains available until the
+next intentional major release.
 
 ## Installation
 
@@ -206,7 +207,7 @@ Returns:
 - `useStorePlain`
 - `useStoreApi`
 - `provider`
-- `getProvider()`
+- `getProvider()` (deprecated; use `provider`)
 - `useResolvedStoreApi()`
 - `useResolvedValue()`
 - `useResolvedStorePlain()`
@@ -319,14 +320,19 @@ It returns the same resolved hook family used by `createStoreToolkit`:
 The deprecated compatibility names have been removed. Replace them with their
 canonical equivalents:
 
-| Removed name                     | Replacement                                   |
-| -------------------------------- | --------------------------------------------- |
-| `toolkit.createProvider()`       | `toolkit.provider` or `toolkit.getProvider()` |
-| `useContext()`                   | `useContextStoreApi()`                        |
-| `useOptionalContext()`           | `useContextStoreOptional()`                   |
-| `useResolvedStore()`             | `useResolvedStoreApi()`                       |
-| `useResolvedStoreWithSelector()` | `useResolvedValue()`                          |
-| `onStoreCreate`                  | `onStoreReady`                                |
+| Removed name                     | Replacement                 |
+| -------------------------------- | --------------------------- |
+| `toolkit.createProvider()`       | `toolkit.provider`          |
+| `useContext()`                   | `useContextStoreApi()`      |
+| `useOptionalContext()`           | `useContextStoreOptional()` |
+| `useResolvedStore()`             | `useResolvedStoreApi()`     |
+| `useResolvedStoreWithSelector()` | `useResolvedValue()`        |
+| `onStoreCreate`                  | `onStoreReady`              |
+
+`getProvider()` remains available as a deprecated compatibility path. Replace
+`toolkit.getProvider()` with `toolkit.provider`; both currently return the exact
+same Provider bindings object. Its removal is deferred to a separately approved
+major release, and calling it does not emit a runtime warning.
 
 `onStoreReady` runs after the provider commits and at most once for each provider
 store instance. Use `onStoreInit` when state must be initialized synchronously
