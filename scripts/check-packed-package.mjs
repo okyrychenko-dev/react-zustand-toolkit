@@ -118,17 +118,36 @@ try {
     invariant(existsSync(join(packageRoot, exportPath)), `Missing exported file: ${exportPath}`);
   }
 
+  for (const declarationFile of ["dist/index.d.ts", "dist/index.d.cts"]) {
+    const declarations = readFileSync(join(packageRoot, declarationFile), "utf8");
+    for (const deprecatedName of [
+      "getProvider",
+      "createTransitionAction",
+      "useActionStateAdapter",
+      "useOptimisticReducer",
+    ]) {
+      const declarationPattern = new RegExp(
+        `/\\*\\*(?:(?!\\*/)[\\s\\S])*?@deprecated(?:(?!\\*/)[\\s\\S])*?\\*/\\s*(?:declare\\s+function\\s+)?${deprecatedName}\\b`,
+        "u"
+      );
+      invariant(
+        declarationPattern.test(declarations),
+        `${declarationFile} is missing deprecation guidance for ${deprecatedName}`
+      );
+    }
+  }
+
   writeFileSync(
     join(consumerRoot, "package.json"),
     JSON.stringify({ private: true, type: "module" })
   );
   writeFileSync(
     join(consumerRoot, "esm.mjs"),
-    'import { createShallowStore } from "@okyrychenko-dev/react-zustand-toolkit";\nif (typeof createShallowStore !== "function") throw new Error("ESM export unavailable");\n'
+    'import { createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer } from "@okyrychenko-dev/react-zustand-toolkit";\nfor (const exportedFunction of [createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer]) {\n  if (typeof exportedFunction !== "function") throw new Error("ESM export unavailable");\n}\nconst provider = createStoreProvider(() => ({}));\nif (typeof provider.useContextStoreOptional !== "function") throw new Error("ESM optional provider access unavailable");\n'
   );
   writeFileSync(
     join(consumerRoot, "cjs.cjs"),
-    'const { createShallowStore } = require("@okyrychenko-dev/react-zustand-toolkit");\nif (typeof createShallowStore !== "function") throw new Error("CommonJS export unavailable");\n'
+    'const { createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer } = require("@okyrychenko-dev/react-zustand-toolkit");\nfor (const exportedFunction of [createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer]) {\n  if (typeof exportedFunction !== "function") throw new Error("CommonJS export unavailable");\n}\nconst provider = createStoreProvider(() => ({}));\nif (typeof provider.useContextStoreOptional !== "function") throw new Error("CommonJS optional provider access unavailable");\n'
   );
   writeFileSync(
     join(consumerRoot, "side-effect-entry.js"),
