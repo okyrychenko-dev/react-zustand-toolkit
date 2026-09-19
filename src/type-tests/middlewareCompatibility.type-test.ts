@@ -1,12 +1,9 @@
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import {
-  type ResolvedStoreBindings,
-  createResolvedStoreHooks,
-  createShallowStore,
-  createStoreProvider,
-  createStoreToolkit,
-} from "../index";
+import { createShallowStore, createStoreToolkit } from "../core";
+import { createResolvedStoreHooks } from "../hooks";
+import { createStoreProvider } from "../providers";
+import type { ResolvedStoreBindings } from "../hooks";
 
 interface CounterState {
   count: number;
@@ -35,9 +32,7 @@ const _devtoolsStore = createShallowStore<CounterState, [["zustand/devtools", ne
   )
 );
 
-type DevtoolsCleanupAssertion = Assert<
-  IsCallable<typeof _devtoolsStore.useStoreApi.devtools.cleanup>
->;
+type DevtoolsCleanupAssertion = Assert<IsCallable<typeof _devtoolsStore.store.devtools.cleanup>>;
 
 const _persistStore = createShallowStore<CounterState, [["zustand/persist", CounterState]]>(
   persist(
@@ -51,7 +46,7 @@ const _persistStore = createShallowStore<CounterState, [["zustand/persist", Coun
   )
 );
 
-type PersistApiAssertion = Assert<HasKey<typeof _persistStore.useStoreApi, "persist">>;
+type PersistApiAssertion = Assert<HasKey<typeof _persistStore.store, "persist">>;
 
 const _subscribeStore = createShallowStore<
   CounterState,
@@ -65,7 +60,7 @@ const _subscribeStore = createShallowStore<
   }))
 );
 
-const _unsubscribe = _subscribeStore.useStoreApi.subscribe(
+const _unsubscribe = _subscribeStore.store.subscribe(
   (state) => state.count,
   (selected, previous) => {
     const nextCount: number = selected;
@@ -88,9 +83,7 @@ const _immerStore = createShallowStore<CounterState, [["zustand/immer", never]]>
   }))
 );
 
-const _immerUpdater: Parameters<typeof _immerStore.useStoreApi.setState>[0] = (
-  draft: CounterState
-) => {
+const _immerUpdater: Parameters<typeof _immerStore.store.setState>[0] = (draft: CounterState) => {
   draft.count += 1;
 };
 
@@ -111,13 +104,17 @@ const combinedCreator = persist<CounterState, [], [["zustand/devtools", never]],
   { name: "CombinedStore", storage }
 );
 
-const _provider = createStoreProvider<CounterState, CombinedMutators>(combinedCreator);
-const _toolkit = createStoreToolkit<CounterState, CombinedMutators>(combinedCreator);
-const _standaloneResolved = createResolvedStoreHooks<CounterState, CombinedMutators>(
-  _toolkit.useStoreApi,
-  _provider.useContextStoreOptional
+const _provider = createStoreProvider<CounterState, undefined, CombinedMutators>(
+  () => combinedCreator
 );
-const _toolkitResolvedContract: ResolvedStoreBindings<CounterState, CombinedMutators> = _toolkit;
+const _toolkit = createStoreToolkit<CounterState, undefined, CombinedMutators>(
+  () => combinedCreator,
+  { globalInput: undefined }
+);
+const _standaloneResolved = createResolvedStoreHooks<CounterState, CombinedMutators>(
+  _toolkit.global.store,
+  _provider.useProviderStoreOptional
+);
 const _standaloneResolvedContract: ResolvedStoreBindings<CounterState, CombinedMutators> =
   _standaloneResolved;
 
@@ -127,16 +124,12 @@ type ProviderPersistAssertion = Assert<
 type ProviderDevtoolsAssertion = Assert<
   HasKey<ReturnType<typeof _provider.useContextStoreApi>, "devtools">
 >;
-type ToolkitPersistAssertion = Assert<HasKey<typeof _toolkit.useStoreApi, "persist">>;
-type ToolkitDevtoolsAssertion = Assert<HasKey<typeof _toolkit.useStoreApi, "devtools">>;
-type ResolvedPersistAssertion = Assert<
-  HasKey<ReturnType<typeof _toolkit.useResolvedStoreApi>, "persist">
->;
+type ToolkitPersistAssertion = Assert<HasKey<typeof _toolkit.global.store, "persist">>;
+type ToolkitDevtoolsAssertion = Assert<HasKey<typeof _toolkit.global.store, "devtools">>;
+type ResolvedPersistAssertion = Assert<HasKey<ReturnType<typeof _toolkit.useStoreApi>, "persist">>;
 type StandaloneResolvedDevtoolsAssertion = Assert<
   HasKey<ReturnType<typeof _standaloneResolvedContract.useResolvedStoreApi>, "devtools">
 >;
-
-void _toolkitResolvedContract;
 
 export type MiddlewareCompatibilityAssertions = [
   DevtoolsCleanupAssertion,

@@ -1,5 +1,8 @@
 import { createStore } from "zustand";
-import { type ResolvedStoreBindings, createResolvedStoreHooks, createStoreToolkit } from "../index";
+import { createStoreToolkit } from "../core";
+import { createResolvedStoreHooks } from "../hooks";
+import type { StoreToolkit } from "../core";
+import type { ResolvedStoreBindings } from "../hooks";
 
 interface CounterState {
   count: number;
@@ -18,8 +21,10 @@ const plainState: CounterState = resolvedBindings.useResolvedStorePlain();
 const plainCount: number = resolvedBindings.useResolvedStorePlain((state) => state.count);
 const resolvedApi = resolvedBindings.useResolvedStoreApi();
 
-const toolkit = createStoreToolkit<CounterState>(() => ({ count: 0 }));
-const toolkitBindings: ResolvedStoreBindings<CounterState> = toolkit;
+const toolkit = createStoreToolkit<CounterState>(() => () => ({ count: 0 }), {
+  globalInput: undefined,
+});
+const toolkitBindings: StoreToolkit<CounterState> = toolkit;
 
 void fullState;
 void selectedCount;

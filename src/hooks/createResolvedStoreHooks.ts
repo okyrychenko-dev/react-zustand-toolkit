@@ -1,5 +1,17 @@
 import { createStoreSelectionBindings } from "./storeSelection";
-import type { ResolvedStoreBindings, StoreApiWithMutators, StoreMutatorTuple } from "../types";
+import type {
+  StoreApiWithMutators,
+  StoreMutatorTuple,
+  StorePlainHook,
+  StoreValueHook,
+} from "../types";
+
+/** Bindings that resolve to a Provider store when present, otherwise the Global store. */
+export interface ResolvedStoreBindings<TState, TMutators extends Array<StoreMutatorTuple> = []> {
+  useResolvedStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  useResolvedValue: StoreValueHook<TState>;
+  useResolvedStorePlain: StorePlainHook<TState>;
+}
 
 /**
  * Creates hooks that resolve between context store and global store

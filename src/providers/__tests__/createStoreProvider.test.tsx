@@ -17,7 +17,7 @@ describe("createStoreProvider", () => {
       useContextStore,
       useContextStorePlain,
       useIsInsideProvider,
-    } = createStoreProvider<TestStore>((set) => ({
+    } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
@@ -30,7 +30,7 @@ describe("createStoreProvider", () => {
   });
 
   it("should throw error when used outside provider", () => {
-    const { useContextStoreApi } = createStoreProvider<TestStore>((set) => ({
+    const { useContextStoreApi } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
@@ -41,12 +41,14 @@ describe("createStoreProvider", () => {
   });
 
   it("should work inside provider", () => {
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+    const { Provider, useContextStore } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
     const { result } = renderHook(() => useContextStore((state) => state.value), {
       wrapper,
@@ -56,7 +58,7 @@ describe("createStoreProvider", () => {
   });
 
   it("should detect if inside provider", () => {
-    const { Provider, useIsInsideProvider } = createStoreProvider<TestStore>((set) => ({
+    const { Provider, useIsInsideProvider } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
@@ -64,21 +66,27 @@ describe("createStoreProvider", () => {
     const { result: outsideResult } = renderHook(() => useIsInsideProvider());
     expect(outsideResult.current).toBe(false);
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
     const { result: insideResult } = renderHook(() => useIsInsideProvider(), { wrapper });
     expect(insideResult.current).toBe(true);
   });
 
   it("should create isolated instances", () => {
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+    const { Provider, useContextStore } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
-    const wrapper1 = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper1 = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
-    const wrapper2 = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper2 = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
     const { result: result1 } = renderHook(() => useContextStore(), { wrapper: wrapper1 });
     const { result: result2 } = renderHook(() => useContextStore(), { wrapper: wrapper2 });
@@ -94,13 +102,14 @@ describe("createStoreProvider", () => {
   it("should call onStoreReady callback with store", async () => {
     let receivedStore: StoreApi<TestStore> | null = null;
 
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+    const { Provider, useContextStore } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
+        input={undefined}
         onStoreReady={(store) => {
           receivedStore = store;
         }}
@@ -125,7 +134,7 @@ describe("createStoreProvider", () => {
       setInitialized: (value: boolean) => void;
     }
 
-    const { Provider, useContextStore } = createStoreProvider<StoreWithInit>((set) => ({
+    const { Provider, useContextStore } = createStoreProvider<StoreWithInit>(() => (set) => ({
       value: 0,
       initialized: false,
       increment: () => set((state) => ({ value: state.value + 1 })),
@@ -134,6 +143,7 @@ describe("createStoreProvider", () => {
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
+        input={undefined}
         onStoreInit={(store) => {
           store.getState().setInitialized(true);
         }}
@@ -149,26 +159,28 @@ describe("createStoreProvider", () => {
     expect(result.current).toBe(true);
   });
 
-  it("should return null from useContextStoreOptional when outside provider", () => {
-    const { useContextStoreOptional } = createStoreProvider<TestStore>((set) => ({
+  it("should return null from useProviderStoreOptional when outside provider", () => {
+    const { useProviderStoreOptional } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
-    const { result } = renderHook(() => useContextStoreOptional());
+    const { result } = renderHook(() => useProviderStoreOptional());
 
     expect(result.current).toBeNull();
   });
 
-  it("should return store from useContextStoreOptional when inside provider", () => {
-    const { Provider, useContextStoreOptional } = createStoreProvider<TestStore>((set) => ({
+  it("should return store from useProviderStoreOptional when inside provider", () => {
+    const { Provider, useProviderStoreOptional } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
-    const { result } = renderHook(() => useContextStoreOptional(), { wrapper });
+    const { result } = renderHook(() => useProviderStoreOptional(), { wrapper });
 
     expect(result.current).not.toBeNull();
     expect(result.current).toHaveProperty("getState");
@@ -178,13 +190,14 @@ describe("createStoreProvider", () => {
   it("should call onStoreReady only once for rerenders", async () => {
     let calls = 0;
 
-    const { Provider, useContextStore } = createStoreProvider<TestStore>((set) => ({
+    const { Provider, useContextStore } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
 
     const wrapper = ({ children }: PropsWithChildren) => (
       <Provider
+        input={undefined}
         onStoreReady={() => {
           calls += 1;
         }}
@@ -207,15 +220,19 @@ describe("createStoreProvider", () => {
 
   it("should call onStoreReady when it is provided after the initial render", async () => {
     const onStoreReady = vi.fn();
-    const { Provider } = createStoreProvider<TestStore>((set) => ({
+    const { Provider } = createStoreProvider<TestStore>(() => (set) => ({
       value: 0,
       increment: () => set((state) => ({ value: state.value + 1 })),
     }));
-    const { rerender } = render(<Provider>content</Provider>);
+    const { rerender } = render(<Provider input={undefined}>content</Provider>);
 
     expect(onStoreReady).not.toHaveBeenCalled();
 
-    rerender(<Provider onStoreReady={onStoreReady}>content</Provider>);
+    rerender(
+      <Provider input={undefined} onStoreReady={onStoreReady}>
+        content
+      </Provider>
+    );
 
     await waitFor(() => {
       expect(onStoreReady).toHaveBeenCalledOnce();
@@ -224,13 +241,15 @@ describe("createStoreProvider", () => {
 
   it("should support custom equality for context selector hook", () => {
     const { Provider, useContextStoreApi, useContextStore } = createStoreProvider<TestStore>(
-      (set) => ({
+      () => (set) => ({
         value: 0,
         increment: () => set((state) => ({ value: state.value + 1 })),
       })
     );
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
 
     const { result } = renderHook(
       () => ({
@@ -259,14 +278,16 @@ describe("createStoreProvider", () => {
     }
 
     const { Provider, useContextStore, useContextStorePlain, useContextStoreApi } =
-      createStoreProvider<ProviderPlainStore>((set) => ({
+      createStoreProvider<ProviderPlainStore>(() => (set) => ({
         value: 0,
         label: "test",
         increment: () => set((state) => ({ value: state.value + 1 })),
         setLabel: (label: string) => set({ label }),
       }));
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
     const { result } = renderHook(
       () => ({
         api: useContextStoreApi(),
@@ -289,13 +310,17 @@ describe("createStoreProvider", () => {
       label: string;
     }
 
-    const { Provider, useContextStorePlain } = createStoreProvider<ProviderPlainStore>((set) => ({
-      value: 5,
-      label: "ready",
-      increment: () => set((state) => ({ value: state.value + 1 })),
-    }));
+    const { Provider, useContextStorePlain } = createStoreProvider<ProviderPlainStore>(
+      () => (set) => ({
+        value: 5,
+        label: "ready",
+        increment: () => set((state) => ({ value: state.value + 1 })),
+      })
+    );
 
-    const wrapper = ({ children }: PropsWithChildren) => <Provider>{children}</Provider>;
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider input={undefined}>{children}</Provider>
+    );
     const { result } = renderHook(() => useContextStorePlain(), { wrapper });
 
     expect(result.current.value).toBe(5);

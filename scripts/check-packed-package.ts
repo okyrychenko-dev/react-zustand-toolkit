@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { publicationContract } from "./publication-contract.ts";
 
 const repositoryRoot = new URL("../", import.meta.url);
 const repositoryPath = fileURLToPath(repositoryRoot);
@@ -21,7 +22,7 @@ const tarballPath = join(temporaryRoot, "react-zustand-toolkit.tgz");
 const extractRoot = join(temporaryRoot, "extract");
 const consumerRoot = join(temporaryRoot, "consumer");
 
-function run(command, args) {
+function run(command: string, args: Array<string>) {
   return execFileSync(command, args, {
     cwd: repositoryRoot,
     encoding: "utf8",
@@ -29,30 +30,49 @@ function run(command, args) {
   });
 }
 
-function invariant(condition, message) {
+const contractViolations: Array<string> = [];
+
+function check(condition: boolean, message: string) {
   if (!condition) {
-    throw new Error(message);
+    contractViolations.push(message);
   }
 }
 
-function listFiles(directory) {
+function throwIfContractViolations(): void {
+  if (contractViolations.length > 0) {
+    throw new Error(
+      `Publication contract violations (${contractViolations.length}):\n- ${contractViolations.join("\n- ")}`
+    );
+  }
+}
+
+function listFiles(directory: string): Array<string> {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? listFiles(path) : [relative(join(extractRoot, "package"), path)];
   });
 }
 
-function packageRootName(specifier) {
+function packageRootName(specifier: string): string {
   const segments = specifier.split("/");
   return specifier.startsWith("@") ? `${segments[0]}/${segments[1]}` : segments[0];
 }
 
-function externalPackages(contents) {
+function externalPackages(contents: string): Array<string> {
   const specifiers = [
     ...contents.matchAll(/\bfrom\s+["']([^"']+)["']/gu),
     ...contents.matchAll(/\brequire\(["']([^"']+)["']\)/gu),
   ].map((match) => packageRootName(match[1]));
   return [...new Set(specifiers)].sort();
+}
+
+function runtimeExportAssertions(moduleLabel: string): string {
+  const expectedRuntimeExports = [
+    ...publicationContract.runtimeExports.stable,
+    ...publicationContract.runtimeExports.deprecated,
+  ].sort();
+
+  return `const expected = ${JSON.stringify(expectedRuntimeExports)};\nconst actual = Object.keys(packageExports).sort();\nif (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(\`${moduleLabel} exports differ: \${JSON.stringify(actual)}\`);\nfor (const name of expected) if (typeof packageExports[name] !== "function") throw new Error(\`${moduleLabel} export unavailable: \${name}\`);\n`;
 }
 
 try {
@@ -62,34 +82,25 @@ try {
   run("tar", ["-xzf", tarballPath, "-C", extractRoot]);
 
   const packageRoot = join(extractRoot, "package");
-  const expectedFiles = [
-    "CHANGELOG.md",
-    "LICENSE",
-    "README.md",
-    "dist/index.cjs",
-    "dist/index.cjs.map",
-    "dist/index.d.cts",
-    "dist/index.d.ts",
-    "dist/index.js",
-    "dist/index.js.map",
-    "package.json",
-  ];
   const packedFiles = listFiles(packageRoot).sort();
-  invariant(
-    JSON.stringify(packedFiles) === JSON.stringify(expectedFiles),
+  check(
+    JSON.stringify(packedFiles) === JSON.stringify(publicationContract.packedFiles),
     `Unexpected packed files:\n${packedFiles.join("\n")}`
   );
 
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
-  invariant(manifest.sideEffects === false, "Published package must remain side-effect free");
-  invariant(
+  check(
+    manifest.sideEffects === publicationContract.sideEffects,
+    "Published package must remain side-effect free"
+  );
+  check(
     JSON.stringify(manifest.peerDependencies) ===
-      JSON.stringify({ react: "^18.0.0 || ^19.0.0", zustand: "^5.0.0" }),
+      JSON.stringify(publicationContract.peerDependencies),
     "Published peer dependencies do not match the public contract"
   );
-  invariant(
-    JSON.stringify(manifest.dependencies) ===
-      JSON.stringify({ "@okyrychenko-dev/type-utils": "^0.1.2" }),
+  check(
+    JSON.stringify(Object.keys(manifest.dependencies ?? {}).sort()) ===
+      JSON.stringify(publicationContract.runtimeDependencies),
     "Published runtime dependencies do not match the implementation contract"
   );
 
@@ -104,38 +115,62 @@ try {
       )
     ),
   ].sort();
-  invariant(
+  check(
     JSON.stringify(importedRuntimePackages) === JSON.stringify(declaredRuntimePackages),
     `Built imports ${JSON.stringify(importedRuntimePackages)} do not match declared runtime packages ${JSON.stringify(declaredRuntimePackages)}`
   );
 
-  for (const exportPath of [
+  const exportTargets = [
     manifest.exports["."].import.types,
     manifest.exports["."].import.default,
     manifest.exports["."].require.types,
     manifest.exports["."].require.default,
-  ]) {
-    invariant(existsSync(join(packageRoot, exportPath)), `Missing exported file: ${exportPath}`);
+  ];
+  check(
+    JSON.stringify(exportTargets) === JSON.stringify(publicationContract.exportTargets),
+    `Package export targets do not match the publication contract: ${JSON.stringify(exportTargets)}`
+  );
+  for (const exportPath of exportTargets) {
+    check(existsSync(join(packageRoot, exportPath)), `Missing exported file: ${exportPath}`);
   }
 
   for (const declarationFile of ["dist/index.d.ts", "dist/index.d.cts"]) {
     const declarations = readFileSync(join(packageRoot, declarationFile), "utf8");
-    for (const deprecatedName of [
-      "getProvider",
-      "createTransitionAction",
-      "useActionStateAdapter",
-      "useOptimisticReducer",
-    ]) {
+    const exportStatement = declarations.match(/^export \{ ([^}]+) \};$/mu);
+    if (exportStatement) {
+      const exportEntries = exportStatement[1].split(", ");
+      const actualTypeExports = exportEntries
+        .filter((entry) => entry.startsWith("type "))
+        .map((entry) => entry.slice("type ".length))
+        .sort();
+      const expectedTypeExports = [
+        ...publicationContract.typeExports.stable,
+        ...publicationContract.typeExports.deprecated,
+      ].sort();
+      check(
+        JSON.stringify(actualTypeExports) === JSON.stringify(expectedTypeExports),
+        `${declarationFile} type exports ${JSON.stringify(actualTypeExports)} do not match ${JSON.stringify(expectedTypeExports)}`
+      );
+    } else {
+      check(false, `${declarationFile} is missing its public export statement`);
+    }
+    const deprecatedExports = [
+      ...publicationContract.runtimeExports.deprecated,
+      ...publicationContract.typeExports.deprecated,
+    ];
+    for (const deprecatedName of deprecatedExports) {
       const declarationPattern = new RegExp(
         `/\\*\\*(?:(?!\\*/)[\\s\\S])*?@deprecated(?:(?!\\*/)[\\s\\S])*?\\*/\\s*(?:declare\\s+function\\s+)?${deprecatedName}\\b`,
         "u"
       );
-      invariant(
+      check(
         declarationPattern.test(declarations),
         `${declarationFile} is missing deprecation guidance for ${deprecatedName}`
       );
     }
   }
+
+  throwIfContractViolations();
 
   writeFileSync(
     join(consumerRoot, "package.json"),
@@ -143,26 +178,36 @@ try {
   );
   writeFileSync(
     join(consumerRoot, "esm.mjs"),
-    'import { createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer } from "@okyrychenko-dev/react-zustand-toolkit";\nfor (const exportedFunction of [createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer]) {\n  if (typeof exportedFunction !== "function") throw new Error("ESM export unavailable");\n}\nconst provider = createStoreProvider(() => ({}));\nif (typeof provider.useContextStoreOptional !== "function") throw new Error("ESM optional provider access unavailable");\n'
+    `import * as packageExports from "@okyrychenko-dev/react-zustand-toolkit";\n${runtimeExportAssertions("ESM")}`
   );
   writeFileSync(
     join(consumerRoot, "cjs.cjs"),
-    'const { createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer } = require("@okyrychenko-dev/react-zustand-toolkit");\nfor (const exportedFunction of [createResolvedStoreHooks, createShallowStore, createStoreProvider, createTransitionAction, useActionStateAdapter, useOptimisticReducer]) {\n  if (typeof exportedFunction !== "function") throw new Error("CommonJS export unavailable");\n}\nconst provider = createStoreProvider(() => ({}));\nif (typeof provider.useContextStoreOptional !== "function") throw new Error("CommonJS optional provider access unavailable");\n'
+    `const packageExports = require("@okyrychenko-dev/react-zustand-toolkit");\n${runtimeExportAssertions("CommonJS")}`
   );
   writeFileSync(
     join(consumerRoot, "side-effect-entry.js"),
     'const before = new Set(Reflect.ownKeys(globalThis));\nawait import("@okyrychenko-dev/react-zustand-toolkit");\nconst added = Reflect.ownKeys(globalThis).filter((key) => !before.has(key));\nif (added.length > 0) throw new Error(`Package added globals: ${added.join(", ")}`);\n'
   );
   const typeConsumer = readFileSync(join(repositoryPath, "scripts/package-consumer.typecheck.ts"));
+  const ssrConsumer = readFileSync(join(repositoryPath, "scripts/package-consumer.ssr.ts"));
   writeFileSync(join(consumerRoot, "consumer.mts"), typeConsumer);
   writeFileSync(join(consumerRoot, "consumer.cts"), typeConsumer);
+  writeFileSync(join(consumerRoot, "ssr.mts"), ssrConsumer);
 
   const consumerModules = join(consumerRoot, "node_modules");
   const installedPackage = join(consumerModules, "@okyrychenko-dev/react-zustand-toolkit");
   mkdirSync(join(consumerModules, "@okyrychenko-dev"), { recursive: true });
   mkdirSync(join(consumerModules, "@types"), { recursive: true });
   cpSync(packageRoot, installedPackage, { recursive: true });
-  for (const packageName of ["@okyrychenko-dev/type-utils", "@types/react", "react", "zustand"]) {
+  for (const packageName of [
+    "@okyrychenko-dev/type-utils",
+    "@types/react",
+    "@types/react-dom",
+    "happy-dom",
+    "react",
+    "react-dom",
+    "zustand",
+  ]) {
     const target = join(repositoryPath, "node_modules", packageName);
     const link = join(consumerModules, packageName);
     mkdirSync(join(link, ".."), { recursive: true });
@@ -185,9 +230,11 @@ try {
       "ES2020",
       "consumer.mts",
       "consumer.cts",
+      "ssr.mts",
     ],
     { cwd: consumerRoot, stdio: "inherit" }
   );
+  execFileSync("node", [join(consumerRoot, "ssr.mts")], { stdio: "inherit" });
 
   const sideEffectBundlePath = join(consumerRoot, "side-effect-check.js");
   execFileSync(
@@ -207,12 +254,13 @@ try {
     encoding: "utf8",
     timeout: 5_000,
   });
-  invariant(
+  check(
     sideEffectExecution.status === 0 &&
       sideEffectExecution.stdout === "" &&
       sideEffectExecution.stderr === "",
     `Importing the package produced observable behavior despite sideEffects: false\n${sideEffectExecution.stdout}${sideEffectExecution.stderr}`
   );
+  throwIfContractViolations();
 } finally {
   rmSync(temporaryRoot, { force: true, recursive: true });
 }

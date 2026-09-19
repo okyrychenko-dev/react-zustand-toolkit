@@ -1,2 +1,6 @@
 export { createStoreProvider } from "./createStoreProvider";
-export type { StoreProviderConfig, StoreProviderProps, StoreProviderResult } from "../types";
+export type {
+  StoreProviderConfig,
+  StoreProviderProps,
+  StoreProviderResult,
+} from "./createStoreProvider";

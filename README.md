@@ -4,101 +4,114 @@
 [![npm downloads](https://img.shields.io/npm/dm/@okyrychenko-dev/react-zustand-toolkit.svg)](https://www.npmjs.com/package/@okyrychenko-dev/react-zustand-toolkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-> Type-safe Zustand helpers for shallow-first selectors, isolated providers, and hooks that resolve between global and scoped stores.
+Type-safe Zustand helpers for declarative Provider scope, shallow-first selection, SSR isolation,
+and middleware-preserving Store handles.
 
-## What This Library Does
+## What this library does
 
-`react-zustand-toolkit` gives you three composable layers:
+`react-zustand-toolkit` provides four composable layers:
 
-- `createShallowStore` for a global singleton store with shallow-first selectors
-- `createStoreProvider` for isolated store instances in React context
-- `createStoreToolkit` for both patterns together, plus resolved hooks that work inside and outside a provider
+- `createStoreToolkit` for the normal declarative path: Resolved selection, explicit Global access,
+  and isolated Provider stores from one typed recipe
+- `createShallowStore` for a standalone process-wide Store with Shallow-first selectors
+- `createStoreProvider` for standalone isolated Provider stores
+- `createResolvedStoreHooks` for advanced composition of an existing Global store and Provider
 
-For custom integrations, `createResolvedStoreHooks` is also available to compose
-resolved hooks from an existing global store and an optional context-store hook.
-
-It does not ship its own DevTools runtime for providers.
-If you want Zustand Redux DevTools, apply `devtools(...)` in the store creator itself.
+The library does not ship its own Redux DevTools or persistence runtime. Apply Zustand middleware in
+the Store creator returned by the recipe.
 
 ## Features
 
-- Shallow-first selectors with explicit plain-selector hooks
-- Context providers with isolated store instances
-- Resolved hooks that choose context store first and fall back to global store
-- Optional custom equality for shallow-first selector hooks
-- Full TypeScript inference with Zustand middleware support
-
-## Store Access Matrix
-
-Each factory uses the same value/plain/API naming pattern:
-
-| Store source | Shallow-first value | Plain value             | Store API             |
-| ------------ | ------------------- | ----------------------- | --------------------- |
-| Global       | `useStore`          | `useStorePlain`         | `useStoreApi`         |
-| Provider     | `useContextStore`   | `useContextStorePlain`  | `useContextStoreApi`  |
-| Resolved     | `useResolvedValue`  | `useResolvedStorePlain` | `useResolvedStoreApi` |
-
-The provider factory also exposes `useContextStoreOptional` for integrations that
-need to detect whether a matching provider is present. The toolkit exposes its
-shared provider bindings through `provider`. The deprecated `getProvider()`
-compatibility accessor returns that same object and remains available until the
-next intentional major release.
+- Declarative nearest-Provider resolution with Global fallback
+- Shallow-first and Plain selector modes, plus custom equality
+- Typed creation-only Provider input for deterministic initialization
+- Request-local SSR isolation and matching-input hydration
+- Stable imperative Store handles with Zustand middleware capabilities
+- Standalone factories for advanced composition
 
 ## Installation
 
 ```bash
-pnpm add @okyrychenko-dev/react-zustand-toolkit zustand
+pnpm add @okyrychenko-dev/react-zustand-toolkit react zustand
 ```
 
-## Quick Start
+## Declarative toolkit
+
+Provider placement declares which Store descendants observe. The top-level hooks use the nearest
+matching Provider store and otherwise fall back to the process-scoped Global store.
 
 ```tsx
 import { createStoreToolkit } from "@okyrychenko-dev/react-zustand-toolkit";
 
+interface CounterInput {
+  initialCount: number;
+}
+
 interface CounterStore {
   count: number;
   increment: () => void;
-  decrement: () => void;
 }
 
-const counterToolkit = createStoreToolkit<CounterStore>(
-  (set) => ({
-    count: 0,
+export const counter = createStoreToolkit<CounterStore, CounterInput>(
+  ({ initialCount }) => (set) => ({
+    count: initialCount,
     increment: () => set((state) => ({ count: state.count + 1 })),
-    decrement: () => set((state) => ({ count: state.count - 1 })),
   }),
-  { name: "Counter" }
+  { globalInput: { initialCount: 0 }, name: "Counter" }
 );
 
-export const {
-  useStore: useCounterStore,
-  useResolvedValue: useCounter,
-  useResolvedStoreApi: useCounterStoreApi,
-} = counterToolkit;
-
-export const { Provider: CounterProvider } = counterToolkit.provider;
-
-function Counter() {
-  const count = useCounter((state) => state.count);
-  const increment = useCounter((state) => state.increment);
-
-  return <button onClick={increment}>Count: {count}</button>;
+function Count() {
+  const count = counter.useStore((state) => state.count);
+  return <span>{count}</span>;
 }
 
 function App() {
   return (
-    <CounterProvider>
-      <Counter />
-    </CounterProvider>
+    <counter.Provider input={{ initialCount: 10 }}>
+      <Count />
+    </counter.Provider>
   );
 }
 ```
 
-## Which Factory To Use
+Outside a Provider, `Count` observes `counter.global.store`. Inside the Provider it observes `10`.
+A nested `counter.Provider` wins for its descendants. Each Provider owns an isolated Store.
+
+### Toolkit interface
+
+| Member | Behavior |
+| --- | --- |
+| `Provider` | Creates one isolated Provider store from required, inert `input` |
+| `useStore` | Resolved Shallow selection; accepts optional custom equality |
+| `useStorePlain` | Resolved selection with Zustand's default equality |
+| `useStoreApi()` | Hook returning the Resolved Store handle |
+| `global.useStore` | Explicit Global Shallow selection |
+| `global.useStorePlain` | Explicit Global Plain selection |
+| `global.store` | Stable imperative Global Store handle; not a hook |
+
+The Store recipe runs synchronously when a Store is created and must be deterministic for equivalent
+input and free of external side effects. It constructs state, actions, and middleware together;
+the toolkit does not patch initial state afterward. Later Provider `input` changes are ignored. Use
+Store actions for live changes or change the Provider `key` to start a new Store lifetime.
+
+`onStoreInit` runs synchronously after construction and before descendants observe the Store.
+`onStoreReady` runs after commit at most once for a Provider Store. Put subscriptions, analytics,
+registrations, and other external effects in `onStoreReady`, not in the recipe or `onStoreInit`.
+
+To model optional initialization, include `undefined` in the input type and still pass the required
+`input` prop.
+
+## Choosing a factory
+
+### `createStoreToolkit`
+
+Use the declarative toolkit for most applications. Components use one top-level selection vocabulary
+and Provider placement determines whether they observe a local Store or the Global fallback. The
+complete example above shows its interface.
 
 ### `createShallowStore`
 
-Use this when you want a global singleton store.
+Use this when a process-wide Store is intentional and Provider isolation is unnecessary.
 
 ```tsx
 import { createShallowStore } from "@okyrychenko-dev/react-zustand-toolkit";
@@ -108,303 +121,284 @@ interface SessionStore {
   setToken: (token: string | null) => void;
 }
 
-const { useStore, useStorePlain, useStoreApi } = createShallowStore<SessionStore>((set) => ({
+const session = createShallowStore<SessionStore>((set) => ({
   token: null,
   setToken: (token) => set({ token }),
 }));
 
-const token = useStore((state) => state.token);
-const plainToken = useStorePlain((state) => state.token);
-const storeApi = useStoreApi;
+const token = session.useStore((state) => state.token);
+const plainToken = session.useStorePlain((state) => state.token);
+session.store.getState().setToken("token");
 ```
 
-Returns:
-
-- `useStore`
-- `useStorePlain`
-- `useStoreApi`
+It returns `useStore`, `useStorePlain`, and the stable imperative `store` property.
 
 ### `createStoreProvider`
 
-Use this when every provider instance must own a separate store.
+Use this advanced factory when every Provider must own an isolated Store but you do not want Global
+fallback or the combined toolkit interface.
 
 ```tsx
 import { createStoreProvider } from "@okyrychenko-dev/react-zustand-toolkit";
+
+interface WizardInput {
+  initialStep: number;
+}
 
 interface WizardStore {
   step: number;
   next: () => void;
 }
 
-const {
-  Provider: WizardProvider,
-  useContextStore,
-  useContextStoreApi,
-} = createStoreProvider<WizardStore>(
-  (set) => ({
-    step: 1,
+const wizard = createStoreProvider<WizardStore, WizardInput>(
+  ({ initialStep }) => (set) => ({
+    step: initialStep,
     next: () => set((state) => ({ step: state.step + 1 })),
   }),
   "Wizard"
 );
 
 function WizardStep() {
-  const step = useContextStore((state) => state.step);
+  const step = wizard.useContextStore((state) => state.step);
   return <div>Step {step}</div>;
 }
 
 function WizardShell() {
   return (
-    <WizardProvider>
+    <wizard.Provider input={{ initialStep: 1 }}>
       <WizardStep />
-    </WizardProvider>
+    </wizard.Provider>
   );
 }
 ```
 
-Returns:
+It returns `Provider`, strict Store hooks, `useIsInsideProvider`, and the advanced
+`useProviderStoreOptional` lookup. Strict hooks throw outside the matching Provider.
 
-- `Provider`
-- `useContextStoreApi`
-- `useContextStore`
-- `useContextStorePlain`
-- `useContextStoreOptional`
-- `useIsInsideProvider`
+## Provider lifecycle
 
-### `createStoreToolkit`
+Both the toolkit Provider and standalone Provider support two lifecycle stages:
 
-Use this when components should work both with and without a provider.
+- `onStoreInit` runs synchronously once during Store creation, before descendants observe it.
+- `onStoreReady` runs after commit, at most once for that Store lifetime.
+
+Use the Store recipe and `onStoreInit` only for synchronous construction and validation. Start
+subscriptions, analytics, registrations, and other external effects in `onStoreReady`. Changing
+callback identities does not repeat a lifecycle stage that has already completed.
+
+## Server rendering and hydration
+
+> Never put request-specific server data in `global.store`. The Global store is module-scoped and
+> can be shared by concurrent requests. A request-local Provider is the SSR isolation boundary.
+
+Decode transport data before passing it to the Provider. Serialize that same data into the response
+and give the client Provider observably equivalent decoded input on its first render.
 
 ```tsx
-import { createStoreToolkit } from "@okyrychenko-dev/react-zustand-toolkit";
-
-interface CartStore {
-  items: string[];
-  addItem: (item: string) => void;
+interface PageInput {
+  userId: string;
 }
 
-const cartToolkit = createStoreToolkit<CartStore>(
-  (set) => ({
-    items: [],
-    addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-  }),
-  { name: "Cart" }
+const page = createStoreToolkit<PageStore, PageInput>(
+  ({ userId }) => () => ({ userId }),
+  { globalInput: { userId: "anonymous" }, name: "Page" }
 );
 
-export const { useResolvedValue: useCart } = cartToolkit;
-export const { Provider: CartProvider } = cartToolkit.provider;
+function PageView() {
+  return <main>{page.useStore((state) => state.userId)}</main>;
+}
 
-function CartCount() {
-  const items = useCart((state) => state.items);
-  return <span>{items.length}</span>;
+// Server: create one element tree per request.
+const input = decodePageInput(request);
+const html = renderToString(
+  <page.Provider input={input}>
+    <PageView />
+  </page.Provider>
+);
+const serializedInput = JSON.stringify(input).replaceAll("<", "\\u003c");
+
+// Client: decode the embedded data and hydrate with equivalent input.
+const clientInput = decodeEmbeddedPageInput(serializedInput);
+const root = document.getElementById("root");
+if (root) {
+  hydrateRoot(
+    root,
+    <page.Provider input={clientInput}>
+      <PageView />
+    </page.Provider>
+  );
 }
 ```
 
-Returns:
+The application owns encoding, decoding, and validation. React may construct and discard unobserved
+Stores while retrying server work; the guarantee is that distinct request trees do not share an
+observable Provider store, not an exact recipe call count.
 
-- `useStore`
-- `useStorePlain`
-- `useStoreApi`
-- `provider`
-- `getProvider()` (deprecated; use `provider`)
-- `useResolvedStoreApi()`
-- `useResolvedValue()`
-- `useResolvedStorePlain()`
+### Next.js App Router
 
-## Selector Semantics
+Create the toolkit in a client module containing `"use client"`. A React Server Component may load,
+validate, and serialize data, then pass inert props to a client component that renders the Provider.
+Server Components must not invoke toolkit hooks or read or mutate toolkit Store handles. No Next.js
+runtime dependency is required.
 
-### Shallow-first mode
+### Persistence
 
-`useStore`, `useContextStore`, and `useResolvedValue` keep the previous selected value when the equality check passes.
-By default they use `zustand/shallow`.
-The selected reference also remains stable across parent re-renders. If a
-resolved hook switches between its global and provider store, its cached value is
-reset for the newly selected store.
+Browser storage can change the first client state before hydration and cause markup mismatches. When
+using Zustand persistence, disable automatic hydration when needed, render from the server input,
+then rehydrate storage in a controlled post-commit step. Do not let persisted browser state replace
+the initial Provider state before React hydrates matching server markup.
 
-This is useful for object and array picks:
+## Advanced standalone composition
+
+The standalone factories remain available when custom wiring is genuinely required:
 
 ```tsx
-const selection = useCounter((state) => ({
+const global = createShallowStore(recipe({ initialCount: 0 }));
+const provider = createStoreProvider<CounterStore, CounterInput>(recipe, "Counter");
+const resolved = createResolvedStoreHooks(global.store, provider.useProviderStoreOptional);
+```
+
+`createStoreProvider` also exposes strict `useContextStoreApi`, Shallow `useContextStore`, Plain
+`useContextStorePlain`, `useIsInsideProvider`, and advanced `useProviderStoreOptional`. Strict hooks
+throw outside the matching Provider. Middleware-enhanced Store capabilities remain on all Store
+handles.
+
+## Migration to the declarative major interface
+
+| Previous member | Replacement |
+| --- | --- |
+| `toolkit.provider.Provider` | `toolkit.Provider` |
+| `toolkit.getProvider().Provider` | `toolkit.Provider` |
+| `toolkit.provider.useContextStore` | `toolkit.useStore` for Resolved selection; `createStoreProvider().useContextStore` for standalone strict selection |
+| `toolkit.provider.useContextStorePlain` | `toolkit.useStorePlain` for Resolved selection; `createStoreProvider().useContextStorePlain` for standalone strict selection |
+| `toolkit.provider.useContextStoreApi` | `toolkit.useStoreApi()` for Resolved access; `createStoreProvider().useContextStoreApi()` for standalone strict access |
+| `toolkit.provider.useIsInsideProvider` | Usually remove; Provider placement now declares scope. For advanced detection use `createStoreProvider().useIsInsideProvider()` |
+| `toolkit.provider.useContextStoreOptional` | Omitted from the toolkit; use advanced `createStoreProvider().useProviderStoreOptional()` |
+| `toolkit.getProvider()` | Remove and use the direct toolkit members above |
+| `toolkit.useResolvedValue` | `toolkit.useStore` |
+| `toolkit.useResolvedStorePlain` | `toolkit.useStorePlain` |
+| `toolkit.useResolvedStoreApi()` | `toolkit.useStoreApi()` |
+| `toolkit.useStore` | `toolkit.global.useStore` |
+| `toolkit.useStorePlain` | `toolkit.global.useStorePlain` |
+| `toolkit.useStoreApi` | `toolkit.global.store` |
+| `createShallowStore().useStoreApi` | `createShallowStore().store` |
+| `provider.useContextStoreOptional` | `provider.useProviderStoreOptional` |
+| `createTransitionAction` | Call the Store action inside React's `startTransition` |
+| `useActionStateAdapter` | Compose React's `useActionState` directly with the Store action |
+| `useOptimisticReducer` | Compose React's `useOptimistic` directly with the Store update |
+
+Change a state creator into an input recipe, provide `globalInput`, add `input` to every Provider,
+and move normal selection to the toolkit's top-level hooks. Outside a Provider they fall back to the
+Global store; inside nested Providers they select the nearest store. Move request data from Global
+state to request-local Provider input and use identical decoded input for server render and initial
+client hydration.
+
+A codemod is intentionally not provided: the old `useStore` name becomes
+`global.useStore` while the new top-level `useStore` has Resolved semantics, so automated renaming
+cannot reliably distinguish destructured aliases and application-specific wrappers. Apply the table
+manually and review each call by intended Store scope.
+
+Lifecycle ordering stays explicit during migration:
+
+```tsx
+<counter.Provider
+  input={decodedInput}
+  onStoreInit={(store) => {
+    // Synchronous, before descendants observe this Store. Do not start external effects here.
+    validateInitialState(store.getState());
+  }}
+  onStoreReady={(store) => {
+    // Post-commit, at most once per Store lifetime: connect external integrations here.
+    analytics.observe(store);
+  }}
+>
+  <App />
+</counter.Provider>
+```
+
+## Selection semantics
+
+Shallow hooks retain the prior selected reference while `zustand/shallow` (or supplied custom
+equality) considers the next value equal. The cache is discarded when the selected Store identity
+changes. Plain hooks use Zustand's default equality. Omitting a selector returns the full state.
+
+### Shallow-first selection
+
+Shallow selection is useful for object and array picks because an equivalent result retains its
+previous reference:
+
+```tsx
+const selection = counter.useStore((state) => ({
   count: state.count,
   increment: state.increment,
 }));
 ```
 
-You can also provide your own equality function:
+Supply custom equality when the domain has a stronger equivalence rule:
 
 ```tsx
-const stableUser = useCounter(
+const stableUser = account.useStore(
   (state) => state.user,
   (left, right) => left?.id === right?.id
 );
 ```
 
-### Plain mode
+Retained selection never crosses Store identities. Moving a component into or out of a Provider, or
+between nested Providers, discards the old Store's cached value.
 
-If you want standard Zustand selector behavior, use the explicit plain hooks:
+### Plain selection
+
+Use the explicit Plain hooks for Zustand's default selector behavior:
 
 ```tsx
-const value = useStorePlain((state) => state.value);
-const contextValue = useContextStorePlain((state) => state.value);
-const resolvedValue = useResolvedStorePlain((state) => state.value);
+const resolvedValue = counter.useStorePlain((state) => state.count);
+const globalValue = counter.global.useStorePlain((state) => state.count);
+const providerValue = wizard.useContextStorePlain((state) => state.step);
 ```
 
-## Resolved Hooks
+## Middleware support
 
-Resolved hooks prefer the provider store when the component is inside a matching provider.
-Otherwise they fall back to the global store.
-
-```tsx
-const toolkit = createStoreToolkit<MyStore>((set) => ({
-  value: 0,
-  increment: () => set((state) => ({ value: state.value + 1 })),
-}));
-
-const { useResolvedValue, useResolvedStoreApi } = toolkit;
-
-function Status() {
-  const value = useResolvedValue((state) => state.value);
-  const store = useResolvedStoreApi();
-
-  return <button onClick={() => store.getState().increment()}>{value}</button>;
-}
-```
-
-### `createResolvedStoreHooks`
-
-Use this lower-level factory when you already own the global store and provider
-integration, but still need hooks that select the provider store when present and
-otherwise use the global store. Most applications should use
-`createStoreToolkit`, which configures this for you.
+Zustand middleware belongs in the Store creator returned by a recipe. Middleware-enhanced
+capabilities remain available on Global, Provider, and Resolved Store handles.
 
 ```tsx
-import {
-  createResolvedStoreHooks,
-  createShallowStore,
-  createStoreProvider,
-} from "@okyrychenko-dev/react-zustand-toolkit";
-
-interface PreferencesStore {
-  theme: "light" | "dark";
-}
-
-const { useStoreApi } = createShallowStore<PreferencesStore>(() => ({
-  theme: "light",
-}));
-
-const { useContextStoreOptional } = createStoreProvider<PreferencesStore>(
-  () => ({
-    theme: "light",
-  }),
-  "Preferences"
-);
-
-const { useResolvedValue } = createResolvedStoreHooks(useStoreApi, useContextStoreOptional);
-
-function ThemeLabel() {
-  const theme = useResolvedValue((state) => state.theme);
-
-  return <span>{theme}</span>;
-}
-```
-
-It returns the same resolved hook family used by `createStoreToolkit`:
-
-- `useResolvedStoreApi()`
-- `useResolvedValue()`
-- `useResolvedStorePlain()`
-
-## Upgrading After Deprecated Alias Removal
-
-The deprecated compatibility names have been removed. Replace them with their
-canonical equivalents:
-
-| Removed name                     | Replacement                 |
-| -------------------------------- | --------------------------- |
-| `toolkit.createProvider()`       | `toolkit.provider`          |
-| `useContext()`                   | `useContextStoreApi()`      |
-| `useOptionalContext()`           | `useContextStoreOptional()` |
-| `useResolvedStore()`             | `useResolvedStoreApi()`     |
-| `useResolvedStoreWithSelector()` | `useResolvedValue()`        |
-| `onStoreCreate`                  | `onStoreReady`              |
-
-`getProvider()` remains available as a deprecated compatibility path. Replace
-`toolkit.getProvider()` with `toolkit.provider`; both currently return the exact
-same Provider bindings object. Its removal is deferred to a separately approved
-major release, and calling it does not emit a runtime warning.
-
-`onStoreReady` runs after the provider commits and at most once for each provider
-store instance. Use `onStoreInit` when state must be initialized synchronously
-during store creation.
-
-## Provider Lifecycle
-
-`createStoreProvider` supports two lifecycle stages:
-
-- `onStoreInit` for synchronous initialization during store creation
-- `onStoreReady` for post-commit side effects
-
-`onStoreReady` is called at most once for each provider store instance. It may be
-provided after the initial render and will run after that render commits, as long
-as no ready callback has already run for the instance.
-
-```tsx
-const { Provider } = createStoreProvider<AppStore>((set) => ({
-  ready: false,
-  setReady: (ready: boolean) => set({ ready }),
-}));
-
-<Provider
-  onStoreInit={(store) => {
-    store.getState().setReady(true);
-  }}
-  onStoreReady={(store) => {
-    console.log("store mounted", store.getState());
-  }}
->
-  <App />
-</Provider>;
-```
-
-## Middleware Support
-
-Zustand middleware belongs in the store creator.
-That includes Redux DevTools support.
-
-```tsx
-import { createShallowStore } from "@okyrychenko-dev/react-zustand-toolkit";
+import { createStoreToolkit } from "@okyrychenko-dev/react-zustand-toolkit";
 import { devtools, persist } from "zustand/middleware";
 
-interface CounterStore {
-  count: number;
-  increment: () => void;
-}
+type CounterMutators = [
+  ["zustand/persist", CounterStore],
+  ["zustand/devtools", never],
+];
 
-const { useStore, useStoreApi } = createShallowStore<
-  CounterStore,
-  [["zustand/persist", CounterStore], ["zustand/devtools", never]]
->(
-  persist(
-    devtools(
-      (set) => ({
-        count: 0,
-        increment: () => set((state) => ({ count: state.count + 1 })),
-      }),
-      { name: "CounterStore" }
+const counter = createStoreToolkit<CounterStore, CounterInput, CounterMutators>(
+  ({ initialCount }) =>
+    persist(
+      devtools(
+        (set) => ({
+          count: initialCount,
+          increment: () => set((state) => ({ count: state.count + 1 })),
+        }),
+        { name: "CounterStore" }
+      ),
+      { name: "counter-store" }
     ),
-    { name: "counter-store" }
-  )
+  { globalInput: { initialCount: 0 } }
 );
 
-useStoreApi.persist.rehydrate();
-useStoreApi.devtools.cleanup();
+counter.global.store.persist.rehydrate();
+counter.global.store.devtools.cleanup();
 ```
 
-This library does not auto-connect provider instances to Redux DevTools.
+This library does not auto-connect Provider stores to Redux DevTools. Apply `devtools(...)` in the
+recipe when each Store instance should expose that middleware capability.
 
-## TypeScript
+With browser persistence, also follow the controlled hydration guidance above so stored state does
+not change the initial client render before React hydration completes.
 
-The toolkit is designed to preserve store API types when you use Zustand middleware.
+## TypeScript and subscriptions
+
+Store mutator types are preserved through the public Store handles. For example,
+`subscribeWithSelector` retains its selector-aware subscription overload:
 
 ```tsx
 import { createShallowStore } from "@okyrychenko-dev/react-zustand-toolkit";
@@ -415,53 +409,38 @@ interface FilterStore {
   setQuery: (query: string) => void;
 }
 
-const { useStoreApi } = createShallowStore<FilterStore, [["zustand/subscribeWithSelector", never]]>(
+const filter = createShallowStore<FilterStore, [["zustand/subscribeWithSelector", never]]>(
   subscribeWithSelector((set) => ({
     query: "",
     setQuery: (query) => set({ query }),
   }))
 );
 
-const unsubscribe = useStoreApi.subscribe(
+const unsubscribe = filter.store.subscribe(
   (state) => state.query,
-  (nextQuery) => {
-    console.log(nextQuery);
-  }
+  (nextQuery) => console.log(nextQuery)
 );
 
 unsubscribe();
 ```
 
-## Migrating from the Deprecated React 19 Helpers
+## Replacing the removed React 19 helpers
 
-`createTransitionAction`, `useActionStateAdapter`, and `useOptimisticReducer`
-remain available for compatibility until the next intentional major release.
-They emit no runtime warnings. New code should compose React's supported
-primitives directly.
+The old helpers were thin wrappers around React primitives and are no longer package exports.
 
-Replace `createTransitionAction` with `startTransition`. Return an asynchronous
-action's promise from the transition scope so React keeps the transition pending
-until the action settles:
+Use `startTransition` instead of `createTransitionAction`:
 
 ```tsx
 import { startTransition } from "react";
 
 function incrementInTransition(): void {
   startTransition(() => {
-    counterToolkit.useStoreApi.getState().increment();
-  });
-}
-
-function saveInTransition(): void {
-  startTransition(async () => {
-    await save();
-    counterToolkit.useStoreApi.setState({ saved: true });
+    counter.global.store.getState().increment();
   });
 }
 ```
 
-Replace `useActionStateAdapter` with `useActionState`. Define the reducer from
-the current `action` during each render so a re-render uses the latest action:
+Use `useActionState` directly instead of `useActionStateAdapter`:
 
 ```tsx
 import { useActionState } from "react";
@@ -472,30 +451,18 @@ const [status, submit, isPending] = useActionState(
 );
 ```
 
-Replace `useOptimisticReducer` with `useOptimistic` and dispatch optimistic
-updates within a transition:
+Use `useOptimistic` directly instead of `useOptimisticReducer`:
 
 ```tsx
-import { startTransition, useCallback, useOptimistic } from "react";
+import { startTransition, useOptimistic } from "react";
 
-const [optimisticTodos, dispatchOptimisticTodo] = useOptimistic(todos, (current, nextTodo) => [
-  ...current,
-  nextTodo,
-]);
-
-const addOptimisticTodo = useCallback(
-  (todo: Todo) => {
-    startTransition(() => dispatchOptimisticTodo(todo));
-  },
-  [dispatchOptimisticTodo]
+const [optimisticTodos, addOptimisticTodo] = useOptimistic(
+  todos,
+  (current, nextTodo: Todo) => [...current, nextTodo]
 );
-```
 
-These helpers are generic React primitive compositions rather than Zustand Store
-selection or composition interfaces. Removing them leaves short, direct React
-calls instead of spreading domain complexity across consumers. Equivalent thin
-wrappers should not be reintroduced unless a future Store-specific requirement
-creates a deeper interface.
+startTransition(() => addOptimisticTodo(todo));
+```
 
 ## Development
 

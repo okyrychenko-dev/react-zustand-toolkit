@@ -1,61 +1,70 @@
 import { createResolvedStoreHooks } from "../hooks";
 import { createStoreProvider } from "../providers";
 import { createShallowStore } from "./createShallowStore";
+import type { ReactNode } from "react";
+import type { StoreProviderProps } from "../providers";
 import type {
-  MutatorsStateCreator,
+  StoreApiWithMutators,
   StoreMutatorTuple,
-  StoreProviderResult,
-  StoreToolkit,
+  StorePlainHook,
+  StoreRecipe,
+  StoreValueHook,
 } from "../types";
 
-/**
- * Creates a complete Zustand store toolkit with global store, provider, and resolution hooks
- *
- * This is the all-in-one solution that combines:
- * - Global singleton store with shallow comparison
- * - Shared provider toolkit for isolated instances
- * - Smart hooks that resolve between global and context stores
- *
- * @template TState - The shape of your store state
- * @template TMutators - Array of mutators (middleware) applied to the store
- * @param storeCreator - Function that creates the store state and actions
- * @param options - Configuration options
- * @param options.name - Name for the store (used in DevTools and Provider)
- * @returns Complete toolkit with all hooks and utilities
- */
-export function createStoreToolkit<TState, TMutators extends Array<StoreMutatorTuple> = []>(
-  storeCreator: MutatorsStateCreator<TState, TMutators>,
-  options: {
-    name?: string;
-  } = {}
-): StoreToolkit<TState, TMutators> {
-  const storeName = options.name ?? "Store";
+/** Configuration for one declarative toolkit and its process-scoped Global store. */
+export interface StoreToolkitOptions<TInput> {
+  globalInput: TInput;
+  name?: string;
+}
 
-  // Create global singleton store
-  const { useStore, useStorePlain, useStoreApi } = createShallowStore<TState, TMutators>(
-    storeCreator
+/** Explicit access to the process-scoped Global store. */
+export interface GlobalStoreBindings<TState, TMutators extends Array<StoreMutatorTuple> = []> {
+  useStore: StoreValueHook<TState>;
+  useStorePlain: StorePlainHook<TState>;
+  store: StoreApiWithMutators<TState, TMutators>;
+}
+
+/** Declarative Resolved-store-first toolkit. */
+export interface StoreToolkit<
+  TState,
+  TInput = undefined,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> {
+  Provider: (props: StoreProviderProps<TState, TInput, TMutators>) => ReactNode;
+  useStore: StoreValueHook<TState>;
+  useStorePlain: StorePlainHook<TState>;
+  useStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  global: GlobalStoreBindings<TState, TMutators>;
+}
+
+/**
+ * Creates a declarative toolkit whose top-level hooks resolve the nearest Provider store and
+ * otherwise fall back to the process-scoped Global store.
+ */
+export function createStoreToolkit<
+  TState,
+  TInput = undefined,
+  TMutators extends Array<StoreMutatorTuple> = [],
+>(
+  storeRecipe: StoreRecipe<TState, TInput, TMutators>,
+  { globalInput, name = "Store" }: StoreToolkitOptions<TInput>
+): StoreToolkit<TState, TInput, TMutators> {
+  const globalBindings = createShallowStore<TState, TMutators>(storeRecipe(globalInput));
+  const provider = createStoreProvider<TState, TInput, TMutators>(storeRecipe, name);
+  const resolved = createResolvedStoreHooks(
+    globalBindings.store,
+    provider.useProviderStoreOptional
   );
 
-  // Create a single shared provider that will be reused
-  const provider = createStoreProvider<TState, TMutators>(storeCreator, storeName);
-
-  // Returns shared provider context/hooks for this toolkit instance
-  function getProvider(): StoreProviderResult<TState, TMutators> {
-    return provider;
-  }
-
-  // Use the shared provider's hooks for resolution
-  const { useContextStoreOptional } = provider;
-
-  // Create resolution hooks
-  const resolvedBindings = createResolvedStoreHooks(useStoreApi, useContextStoreOptional);
-
   return {
-    useStore,
-    useStorePlain,
-    useStoreApi,
-    provider,
-    getProvider,
-    ...resolvedBindings,
+    Provider: provider.Provider,
+    useStore: resolved.useResolvedValue,
+    useStorePlain: resolved.useResolvedStorePlain,
+    useStoreApi: resolved.useResolvedStoreApi,
+    global: {
+      useStore: globalBindings.useStore,
+      useStorePlain: globalBindings.useStorePlain,
+      store: globalBindings.store,
+    },
   };
 }

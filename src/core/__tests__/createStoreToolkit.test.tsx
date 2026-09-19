@@ -1,203 +1,210 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { createStore } from "zustand";
-import { createResolvedStoreHooks } from "../../hooks";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { createStoreToolkit } from "../createStoreToolkit";
 import type { ReactNode } from "react";
 
-interface TestStore {
+interface CounterInput {
+  initialCount: number;
+}
+
+interface CounterStore {
   count: number;
-  increment: () => void;
+  increment: VoidFunction;
+}
+
+function createCounterToolkit() {
+  return createStoreToolkit<CounterStore, CounterInput>(
+    ({ initialCount }) =>
+      (set) => ({
+        count: initialCount,
+        increment: () => set((state) => ({ count: state.count + 1 })),
+      }),
+    { globalInput: { initialCount: 1 }, name: "Counter" }
+  );
 }
 
 describe("createStoreToolkit", () => {
-  it("should create complete toolkit", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
+  it("should expose resolved behavior at the top level and explicit Global behavior", () => {
+    const toolkit = createCounterToolkit();
 
-    expect(toolkit.useStore).toBeDefined();
-    expect(toolkit.useStorePlain).toBeDefined();
-    expect(toolkit.useStoreApi).toBeDefined();
-    expect(toolkit.provider).toBeDefined();
-    expect(toolkit.useResolvedStoreApi).toBeDefined();
-    expect(toolkit.useResolvedValue).toBeDefined();
-    expect(toolkit.useResolvedStorePlain).toBeDefined();
+    expect(toolkit.Provider).toBeTypeOf("function");
+    expect(toolkit.useStore).toBeTypeOf("function");
+    expect(toolkit.useStorePlain).toBeTypeOf("function");
+    expect(toolkit.useStoreApi).toBeTypeOf("function");
+    expect(toolkit.global.store.getState().count).toBe(1);
+    expect(toolkit).not.toHaveProperty("provider");
+    expect(toolkit).not.toHaveProperty("getProvider");
   });
 
-  it("should expose the shared provider through all provider access paths", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Verifies the compatibility path.
-    expect(toolkit.provider).toBe(toolkit.getProvider());
-  });
-
-  it("should work with global store", () => {
-    const { useStore } = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
+  it("should resolve to the Global store outside a Provider", () => {
+    const toolkit = createCounterToolkit();
+    const { result } = renderHook(() => ({
+      shallow: toolkit.useStore((state) => state.count),
+      plain: toolkit.useStorePlain((state) => state.count),
+      store: toolkit.useStoreApi(),
     }));
 
-    const { result } = renderHook(() => useStore((state) => state.count));
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ shallow: 1, plain: 1, store: toolkit.global.store });
+    act(() => toolkit.global.store.getState().increment());
+    expect(result.current.shallow).toBe(2);
+    expect(result.current.plain).toBe(2);
   });
 
-  it("should resolve to global store when outside provider", () => {
-    const { useResolvedValue, useStoreApi } = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
+  it("should synchronously resolve to the nearest Provider store from inert input", () => {
+    const toolkit = createCounterToolkit();
+    let observedStore: ReturnType<typeof toolkit.useStoreApi> | null = null;
 
-    const { result: resolvedResult } = renderHook(() => useResolvedValue((state) => state.count));
-
-    expect(resolvedResult.current).toBe(0);
-
-    act(() => {
-      useStoreApi.getState().increment();
-    });
-
-    expect(resolvedResult.current).toBe(1);
-  });
-
-  it("should resolve to context store when inside provider", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    const { Provider } = toolkit.provider;
-
-    const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
-
-    const { result } = renderHook(() => toolkit.useResolvedValue((state) => state.count), {
-      wrapper,
-    });
-
-    expect(result.current).toBe(0);
-  });
-
-  it("should keep global and provider stores independent", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    const { Provider } = toolkit.provider;
-
-    // Global store
-    const { result: globalResult } = renderHook(() =>
-      toolkit.useResolvedValue((state) => state.count)
-    );
-
-    // Provider store
-    const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
-
-    const { result: providerResult } = renderHook(
-      () => toolkit.useResolvedValue((state) => state.count),
-      { wrapper }
-    );
-
-    // Both start at 0
-    expect(globalResult.current).toBe(0);
-    expect(providerResult.current).toBe(0);
-
-    // Increment global
-    act(() => {
-      toolkit.useStoreApi.getState().increment();
-    });
-
-    // Global changed, provider didn't
-    expect(globalResult.current).toBe(1);
-    expect(providerResult.current).toBe(0);
-  });
-
-  it("should support custom equality in resolved selector hook", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    const { result } = renderHook(() =>
-      toolkit.useResolvedValue(
-        (state) => state.count,
-        () => true
-      )
-    );
-
-    expect(result.current).toBe(0);
-
-    act(() => {
-      toolkit.useStoreApi.getState().increment();
-    });
-
-    expect(result.current).toBe(0);
-  });
-
-  it("should expose plain resolved selector access", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 0,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-    const { result } = renderHook(() => toolkit.useResolvedStorePlain((state) => state.count));
-    const { result: apiResult } = renderHook(() => toolkit.useResolvedStoreApi());
-
-    expect(result.current).toBe(0);
-    expect(apiResult.current).toBe(toolkit.useStoreApi);
-  });
-
-  it("should expose full resolved state without selector outside provider", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 3,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-
-    const { result: valueResult } = renderHook(() => toolkit.useResolvedValue());
-    const { result: plainResult } = renderHook(() => toolkit.useResolvedStorePlain());
-
-    expect(valueResult.current.count).toBe(3);
-    expect(typeof valueResult.current.increment).toBe("function");
-    expect(plainResult.current.count).toBe(3);
-    expect(typeof plainResult.current.increment).toBe("function");
-  });
-
-  it("should expose full resolved state from provider store", () => {
-    const toolkit = createStoreToolkit<TestStore>((set) => ({
-      count: 7,
-      increment: () => set((state) => ({ count: state.count + 1 })),
-    }));
-
-    const { Provider } = toolkit.provider;
-    const wrapper = ({ children }: { children: ReactNode }) => <Provider>{children}</Provider>;
-
-    const { result: valueResult } = renderHook(() => toolkit.useResolvedValue(), { wrapper });
-    const { result: plainResult } = renderHook(() => toolkit.useResolvedStorePlain(), {
-      wrapper,
-    });
-
-    expect(valueResult.current.count).toBe(7);
-    expect(typeof valueResult.current.increment).toBe("function");
-    expect(plainResult.current.count).toBe(7);
-    expect(typeof plainResult.current.increment).toBe("function");
-  });
-
-  it("should reset resolved selection reference when the resolved store changes", () => {
-    interface CollectionStore {
-      items: Array<number>;
+    function Count({ label }: { label: string }): ReactNode {
+      observedStore = toolkit.useStoreApi();
+      return <span>{`${label}:${String(toolkit.useStore((state) => state.count))}`}</span>;
     }
 
-    const globalItems = [1, 2, 3];
-    const contextItems = [1, 2, 3];
-    const globalStore = createStore<CollectionStore>(() => ({ items: globalItems }));
-    const contextStore = createStore<CollectionStore>(() => ({ items: contextItems }));
-    let resolvedContextStore: typeof contextStore | null = null;
-    const { useResolvedValue } = createResolvedStoreHooks(globalStore, () => resolvedContextStore);
-    const { result, rerender } = renderHook(() => useResolvedValue((state) => state.items));
+    render(
+      <toolkit.Provider input={{ initialCount: 2 }}>
+        <Count label="outer" />
+        <toolkit.Provider input={{ initialCount: 3 }}>
+          <Count label="inner" />
+        </toolkit.Provider>
+      </toolkit.Provider>
+    );
 
-    expect(result.current).toBe(globalItems);
+    expect(screen.getByText("outer:2")).toBeInTheDocument();
+    expect(screen.getByText("inner:3")).toBeInTheDocument();
+    expect(observedStore).not.toBeNull();
+    expect(toolkit.global.store.getState().count).toBe(1);
+  });
 
-    resolvedContextStore = contextStore;
-    rerender();
+  it("should reset Retained selection when Provider placement changes the Resolved store", () => {
+    const toolkit = createStoreToolkit<{ items: Array<number> }, number>(
+      (initialItem) => () => ({ items: [initialItem] }),
+      { globalInput: 1 }
+    );
+    const selections: Array<Array<number>> = [];
 
-    expect(result.current).toBe(contextItems);
+    function Selection(): ReactNode {
+      const items = toolkit.useStore(
+        (state) => state.items,
+        () => true
+      );
+      selections.push(items);
+      return <span>{items[0]}</span>;
+    }
+
+    const { rerender } = render(<Selection />);
+    const globalSelection = selections[selections.length - 1];
+    rerender(
+      <toolkit.Provider input={2}>
+        <Selection />
+      </toolkit.Provider>
+    );
+
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(selections[selections.length - 1]).not.toBe(globalSelection);
+
+    rerender(<Selection />);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(selections[selections.length - 1]).toBe(globalSelection);
+  });
+
+  it("should provide Shallow, Plain, custom-equality, and full-state selection", () => {
+    const toolkit = createStoreToolkit<{ items: Array<number> }>(() => () => ({ items: [1, 2] }), {
+      globalInput: undefined,
+    });
+    const { result } = renderHook(() => ({
+      shallow: toolkit.useStore((state) => state.items),
+      custom: toolkit.useStore(
+        (state) => state.items,
+        () => true
+      ),
+      plain: toolkit.useStorePlain((state) => state.items),
+      full: toolkit.useStore(),
+    }));
+    const originalItems = result.current.shallow;
+    const replacementItems = [1, 2];
+
+    act(() => toolkit.global.store.setState({ items: replacementItems }));
+
+    expect(result.current.shallow).toBe(originalItems);
+    expect(result.current.custom).toBe(originalItems);
+    expect(result.current.plain).toBe(replacementItems);
+    expect(result.current.full.items).toBe(replacementItems);
+  });
+
+  it("should consume input once and complete readiness once per Provider lifetime", async () => {
+    const toolkit = createCounterToolkit();
+    const firstReady = vi.fn();
+    const secondReady = vi.fn();
+    const stores: Array<ReturnType<typeof toolkit.useStoreApi>> = [];
+
+    function Count(): ReactNode {
+      stores.push(toolkit.useStoreApi());
+      return <span>{toolkit.useStore((state) => state.count)}</span>;
+    }
+
+    const { rerender } = render(
+      <toolkit.Provider input={{ initialCount: 4 }} onStoreReady={firstReady}>
+        <Count />
+      </toolkit.Provider>
+    );
+    await waitFor(() => expect(firstReady).toHaveBeenCalledOnce());
+
+    rerender(
+      <toolkit.Provider input={{ initialCount: 9 }} onStoreReady={secondReady}>
+        <Count />
+      </toolkit.Provider>
+    );
+
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(stores[stores.length - 1]).toBe(stores[0]);
+    expect(secondReady).not.toHaveBeenCalled();
+  });
+
+  it("should create a new Provider lifetime after a keyed remount", () => {
+    const toolkit = createCounterToolkit();
+    function Count(): ReactNode {
+      return <span>{toolkit.useStore((state) => state.count)}</span>;
+    }
+    const { rerender } = render(
+      <toolkit.Provider key="first" input={{ initialCount: 4 }}>
+        <Count />
+      </toolkit.Provider>
+    );
+    rerender(
+      <toolkit.Provider key="second" input={{ initialCount: 9 }}>
+        <Count />
+      </toolkit.Provider>
+    );
+    expect(screen.getByText("9")).toBeInTheDocument();
+  });
+
+  it("should propagate Store recipe and initialization errors through React", () => {
+    const recipeError = new Error("recipe failed");
+    const toolkit = createStoreToolkit<CounterStore, boolean>(
+      (shouldFail) => {
+        if (shouldFail) {
+          throw recipeError;
+        }
+        return () => ({ count: 0, increment: () => undefined });
+      },
+      { globalInput: false }
+    );
+
+    expect(() => render(<toolkit.Provider input>unreachable</toolkit.Provider>)).toThrow(
+      recipeError
+    );
+
+    const initError = new Error("init failed");
+    expect(() =>
+      render(
+        <toolkit.Provider
+          input={false}
+          onStoreInit={() => {
+            throw initError;
+          }}
+        >
+          unreachable
+        </toolkit.Provider>
+      )
+    ).toThrow(initError);
   });
 });
