@@ -15,3 +15,8 @@ export type MutatorsStateCreator<
   TState,
   TMutators extends Array<StoreMutatorTuple> = [],
 > = StateCreator<TState, [], TMutators, TState>;
+
+/** Creates a complete Store definition from inert, transport-decoded input. */
+export type StoreRecipe<TState, TInput, TMutators extends Array<StoreMutatorTuple> = []> = (
+  input: TInput
+) => MutatorsStateCreator<TState, TMutators>;

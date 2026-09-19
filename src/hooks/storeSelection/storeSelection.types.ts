@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import type { StorePlainHook, StoreValueHook } from "../../types/store-hooks.types";
+import type { StorePlainHook, StoreValueHook } from "../../types";
 
 export type SelectionStore<TState> = Pick<
   StoreApi<TState>,

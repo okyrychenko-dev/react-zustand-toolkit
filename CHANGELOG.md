@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- Made the toolkit Resolved-store-first: `Provider`, `useStore`, `useStorePlain`, and
+  `useStoreApi()` now form the declarative top-level interface.
+- Moved explicit Global access to `global.useStore`, `global.useStorePlain`, and `global.store`.
+- Changed toolkit and Provider construction to typed input recipes with required Provider `input`.
+- Renamed advanced optional Provider lookup to `useProviderStoreOptional`.
+- Renamed the standalone Global Store handle from `useStoreApi` to `store` because it is a stable
+  property rather than a React hook.
+- Removed `provider`, `getProvider()`, redundant Resolved hook names, and deprecated React 19 helper
+  exports from the package contract.
+
 ### Added
 
 - Added packed-package verification for ESM, CommonJS, declarations, runtime dependencies, and side-effect safety.
+- Added request-local SSR isolation and matching-input hydration verification.
+- Added a typed publication inventory and a script-specific TypeScript configuration.
 
 ### Changed
 

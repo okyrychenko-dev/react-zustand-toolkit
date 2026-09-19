@@ -2,10 +2,18 @@ import { createStore } from "zustand";
 import { createStoreSelectionBindings } from "../hooks";
 import type {
   MutatorsStateCreator,
-  ShallowStoreBindings,
   StoreApiWithMutators,
   StoreMutatorTuple,
+  StorePlainHook,
+  StoreValueHook,
 } from "../types";
+
+/** Store bindings with shallow comparison built in. */
+export interface ShallowStoreBindings<TState, TMutators extends Array<StoreMutatorTuple> = []> {
+  useStore: StoreValueHook<TState>;
+  useStorePlain: StorePlainHook<TState>;
+  store: StoreApiWithMutators<TState, TMutators>;
+}
 
 /**
  * Creates a Zustand store with shallow-first selector semantics.
@@ -34,7 +42,7 @@ import type {
  * @returns Object with two properties:
  *          - `useStore`: Hook to access store with shallow comparison
  *          - `useStorePlain`: Hook with plain Zustand selector semantics
- *          - `useStoreApi`: Direct access to the store API for imperative usage
+ *          - `store`: Direct access to the Store API for imperative usage
  *
  * @example
  * Basic counter store with shallow comparison
@@ -111,10 +119,10 @@ import type {
  * @example
  * Using store API for imperative access
  * ```tsx
- * const { useStore, useStoreApi } = createShallowStore<CounterState>(...);
+ * const { useStore, store } = createShallowStore<CounterState>(...);
  *
  * function ExternalButton() {
- *   const storeApi = useStoreApi;
+ *   const storeApi = store;
  *
  *   const handleClick = () => {
  *     // Direct imperative access without hook
@@ -148,6 +156,6 @@ export function createShallowStore<TState, TMutators extends Array<StoreMutatorT
   return {
     useStore,
     useStorePlain,
-    useStoreApi: storeApi,
+    store: storeApi,
   };
 }

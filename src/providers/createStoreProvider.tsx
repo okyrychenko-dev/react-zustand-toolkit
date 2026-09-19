@@ -3,169 +3,73 @@ import { type ReactNode, createContext, useContext, useEffect, useRef, useState 
 import { createStore } from "zustand";
 import { createStoreSelectionBindings } from "../hooks";
 import type {
-  MutatorsStateCreator,
   StoreApiWithMutators,
   StoreMutatorTuple,
-  StoreProviderProps,
-  StoreProviderResult,
+  StorePlainHook,
+  StoreRecipe,
+  StoreValueHook,
 } from "../types";
 
+/** Lifecycle callbacks for one Provider store. */
+export interface StoreProviderConfig<
+  TState = unknown,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> {
+  onStoreInit?: (store: StoreApiWithMutators<TState, TMutators>) => void;
+  onStoreReady?: (store: StoreApiWithMutators<TState, TMutators>) => void;
+}
+
+/** Props for a generated Provider. */
+export interface StoreProviderProps<
+  TState = unknown,
+  TInput = undefined,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> extends StoreProviderConfig<TState, TMutators> {
+  children: ReactNode;
+  input: TInput;
+}
+
+/** Bindings returned by the standalone Provider-store factory. */
+export interface StoreProviderResult<
+  TState,
+  TInput = undefined,
+  TMutators extends Array<StoreMutatorTuple> = [],
+> {
+  Provider: (props: StoreProviderProps<TState, TInput, TMutators>) => ReactNode;
+  useContextStoreApi: () => StoreApiWithMutators<TState, TMutators>;
+  useContextStore: StoreValueHook<TState>;
+  useContextStorePlain: StorePlainHook<TState>;
+  useIsInsideProvider: () => boolean;
+  useProviderStoreOptional: () => StoreApiWithMutators<TState, TMutators> | null;
+}
+
 /**
- * Creates a React Context provider for isolated Zustand store instances.
+ * Creates an advanced standalone Provider-store module.
  *
- * This utility creates a React Context provider that wraps a Zustand store, allowing
- * each provider instance to have its own isolated store. This is essential for:
- * - **Server-Side Rendering**: Each request gets its own store instance
- * - **Testing**: No shared state between test runs
- * - **Micro-frontends**: Isolated state per application instance
- * - **Multiple instances**: Same component tree with independent state
- *
- * The provider creates isolated store instances and provides hooks for accessing
- * the store from components within the provider tree.
- *
- * Returns an object with:
- * - `Provider`: React component to wrap your app
- * - `useContextStoreApi`: Hook to get the store API
- * - `useContextStore`: Hook to select values from store (with shallow comparison)
- * - `useContextStorePlain`: Hook to select values with plain Zustand semantics
- * - `useIsInsideProvider`: Hook to check if inside provider
- * - `useContextStoreOptional`: Hook that returns null if outside provider
- *
- * @template TState - The shape of your store state and actions
- * @template TMutators - Array of mutators (middleware) applied to the store (default: [])
- *
- * @param storeCreator - Function that creates the store state and actions
- * @param contextName - Optional name for better debugging (default: 'Store')
- *                      Used in React DevTools display names and error messages
- *
- * @returns Object with Provider component and hooks to access the context store
- *
- * @example
- * Basic usage with provider
- * ```tsx
- * import { createStoreProvider } from '@okyrychenko-dev/react-zustand-toolkit';
- *
- * interface TodoState {
- *   todos: Todo[];
- *   addTodo: (text: string) => void;
- *   removeTodo: (id: string) => void;
- * }
- *
- * const { Provider: TodoProvider, useContextStore: useTodoStore } =
- *   createStoreProvider<TodoState>(
- *     (set) => ({
- *       todos: [],
- *       addTodo: (text) => set((state) => ({
- *         todos: [...state.todos, { id: Date.now().toString(), text }]
- *       })),
- *       removeTodo: (id) => set((state) => ({
- *         todos: state.todos.filter(t => t.id !== id)
- *       })),
- *     }),
- *     'Todo'
- *   );
- *
- * // Wrap your app
- * function App() {
- *   return (
- *     <TodoProvider>
- *       <TodoList />
- *       <AddTodo />
- *     </TodoProvider>
- *   );
- * }
- *
- * // Use in components
- * function TodoList() {
- *   const todos = useTodoStore((state) => state.todos);
- *   return <ul>{todos.map(todo => <li key={todo.id}>{todo.text}</li>)}</ul>;
- * }
- * ```
- *
- * @example
- * Multiple independent instances
- * ```tsx
- * const { Provider: CounterProvider, useContextStore } =
- *   createStoreProvider<CounterState>(..., 'Counter');
- *
- * function App() {
- *   return (
- *     <div>
- *       <CounterProvider>
- *         <Counter title="Counter 1" />
- *       </CounterProvider>
- *
- *       <CounterProvider>
- *         <Counter title="Counter 2" />
- *       </CounterProvider>
- *     </div>
- *   );
- * }
- *
- * // Each Counter has its own isolated state
- * function Counter({ title }) {
- *   const { count, increment } = useContextStore();
- *   return <div>{title}: {count} <button onClick={increment}>+</button></div>;
- * }
- * ```
- *
- * @example
- * With lifecycle hooks
- * ```tsx
- * const { Provider } = createStoreProvider<AppState>((set) => ({
- *   // ... state
- * }));
- *
- * <Provider
- *   onStoreInit={(store) => {
- *     store.setState({ ready: true });
- *   }}
- *   onStoreReady={(store) => {
- *     console.log('Store initialized:', store.getState());
- *   }}
- * >
- *   <MyApp />
- * </Provider>
- * ```
- *
- * @example
- * Conditional rendering based on provider existence
- * ```tsx
- * const { Provider, useContextStore, useIsInsideProvider } =
- *   createStoreProvider<SettingsState>(..., 'Settings');
- *
- * function SettingsButton() {
- *   const isInsideSettingsProvider = useIsInsideProvider();
- *
- *   if (!isInsideSettingsProvider) {
- *     return null; // Don't render if not inside provider
- *   }
- *
- *   return <button>Settings</button>;
- * }
- * ```
- *
- * @see {@link createShallowStore} for creating a global store
- * @see {@link https://github.com/pmndrs/zustand | Zustand documentation}
- *
- * @public
- * @since 0.6.0
+ * Each Provider synchronously creates one isolated Store from its required inert input. Input is
+ * consumed only at creation. `onStoreInit` completes before descendants observe the Store, while
+ * `onStoreReady` runs after commit at most once for the Store lifetime.
  */
-export function createStoreProvider<TState, TMutators extends Array<StoreMutatorTuple> = []>(
-  storeCreator: MutatorsStateCreator<TState, TMutators>,
+export function createStoreProvider<
+  TState,
+  TInput = undefined,
+  TMutators extends Array<StoreMutatorTuple> = [],
+>(
+  storeRecipe: StoreRecipe<TState, TInput, TMutators>,
   contextName = "Store"
-): StoreProviderResult<TState, TMutators> {
+): StoreProviderResult<TState, TInput, TMutators> {
   const StoreContext = createContext<StoreApiWithMutators<TState, TMutators> | null>(null);
   StoreContext.displayName = `${contextName}Context`;
 
   function Provider({
     children,
+    input,
     onStoreInit,
     onStoreReady,
-  }: StoreProviderProps<TState, TMutators>): ReactNode {
+  }: StoreProviderProps<TState, TInput, TMutators>): ReactNode {
     const isReadyRef = useRef(false);
     const [store] = useState<StoreApiWithMutators<TState, TMutators>>(() => {
-      const newStore = createStore<TState, TMutators>(storeCreator);
+      const newStore = createStore<TState, TMutators>(storeRecipe(input));
       onStoreInit?.(newStore);
       return newStore;
     });
@@ -195,7 +99,7 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     return isDefined(store);
   }
 
-  function useContextStoreOptional(): StoreApiWithMutators<TState, TMutators> | null {
+  function useProviderStoreOptional(): StoreApiWithMutators<TState, TMutators> | null {
     return useContext(StoreContext);
   }
 
@@ -208,6 +112,6 @@ export function createStoreProvider<TState, TMutators extends Array<StoreMutator
     useContextStore,
     useContextStorePlain,
     useIsInsideProvider,
-    useContextStoreOptional,
+    useProviderStoreOptional,
   };
 }

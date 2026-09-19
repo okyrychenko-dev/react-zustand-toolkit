@@ -10,37 +10,31 @@ interface TestStore {
 
 describe("createShallowStore", () => {
   it("should select and update the global store", () => {
-    const { useStore, useStoreApi } = createShallowStore<TestStore>((set) => ({
+    const { useStore, store } = createShallowStore<TestStore>((set) => ({
       count: 0,
       increment: () => set((state) => ({ count: state.count + 1 })),
     }));
     const { result } = renderHook(() => useStore((state) => state.count));
 
-    act(() => useStoreApi.getState().increment());
+    act(() => store.getState().increment());
 
     expect(result.current).toBe(1);
-    expect(useStoreApi.getState().count).toBe(1);
+    expect(store.getState().count).toBe(1);
   });
 
   it("should preserve middleware-enhanced store capabilities", () => {
     const listener = vi.fn();
-    const { useStoreApi } = createShallowStore<
-      TestStore,
-      [["zustand/subscribeWithSelector", never]]
-    >(
+    const { store } = createShallowStore<TestStore, [["zustand/subscribeWithSelector", never]]>(
       subscribeWithSelector((set) => ({
         count: 0,
         increment: () => set((state) => ({ count: state.count + 1 })),
       }))
     );
 
-    expectTypeOf(useStoreApi.subscribe).toBeCallableWith(
-      (state: TestStore) => state.count,
-      listener
-    );
+    expectTypeOf(store.subscribe).toBeCallableWith((state: TestStore) => state.count, listener);
 
-    const unsubscribe = useStoreApi.subscribe((state) => state.count, listener);
-    useStoreApi.getState().increment();
+    const unsubscribe = store.subscribe((state) => state.count, listener);
+    store.getState().increment();
 
     expect(listener).toHaveBeenCalledWith(1, 0);
     unsubscribe();
