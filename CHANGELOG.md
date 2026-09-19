@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-19
+
 ### Breaking Changes
 
 - Made the toolkit Resolved-store-first: `Provider`, `useStore`, `useStorePlain`, and
@@ -30,16 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized package development, CI, and release workflows on pnpm 11.
 - Adopted `@okyrychenko-dev/type-utils` as a direct runtime dependency for shared guards.
 - Aligned package exports and validation tooling with the other maintained `@okyrychenko-dev` libraries.
-- Deprecated `createTransitionAction`, `useActionStateAdapter`, and `useOptimisticReducer` in favor
-  of composing React's supported primitives directly. The helpers remain runtime-compatible without
-  warnings, and removal is deferred to the next intentional major release.
-- Deprecated `createStoreToolkit().getProvider()` in favor of the canonical `provider` property.
-  The compatibility accessor still returns the same Provider bindings without runtime warnings;
-  removal is deferred to the next intentional major release.
+- Replaced the removed React 19 helper exports with migration guidance using React's supported
+  primitives directly.
+- Documented the complete migration from legacy Provider, Resolved store, Global store, lifecycle,
+  and React 19 helper interfaces.
 
 ### Removed
 
-- Removed deprecated provider, resolved-store, and lifecycle aliases.
+- Removed deprecated Provider, Resolved store, and lifecycle aliases.
+- Removed `createTransitionAction`, `useActionStateAdapter`, and `useOptimisticReducer` from the
+  package interface.
 
 ## [0.4.2] - 2026-07-25
 
@@ -182,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript types with generics and mutator support
 - Test suite covering core utilities and provider behavior
 
-[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.2...v1.0.0
 [0.4.2]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/okyrychenko-dev/react-zustand-toolkit/compare/v0.3.0...v0.4.0

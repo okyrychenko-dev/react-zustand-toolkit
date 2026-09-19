@@ -35,6 +35,9 @@ the Store creator returned by the recipe.
 pnpm add @okyrychenko-dev/react-zustand-toolkit react zustand
 ```
 
+The package supports React 18 or 19 and Zustand 5. It ships ESM and CommonJS entry points with
+TypeScript declarations.
+
 ## Declarative toolkit
 
 Provider placement declares which Store descendants observe. The top-level hooks use the nearest
@@ -91,8 +94,10 @@ A nested `counter.Provider` wins for its descendants. Each Provider owns an isol
 
 The Store recipe runs synchronously when a Store is created and must be deterministic for equivalent
 input and free of external side effects. It constructs state, actions, and middleware together;
-the toolkit does not patch initial state afterward. Later Provider `input` changes are ignored. Use
-Store actions for live changes or change the Provider `key` to start a new Store lifetime.
+the toolkit does not patch initial state afterward. The Global store is created immediately from
+`globalInput`; each Provider store is created on that Provider's first render. Later Provider
+`input` changes are ignored. Use Store actions for live changes or change the Provider `key` to
+start a new Store lifetime.
 
 `onStoreInit` runs synchronously after construction and before descendants observe the Store.
 `onStoreReady` runs after commit at most once for a Provider Store. Put subscriptions, analytics,
@@ -184,7 +189,9 @@ Both the toolkit Provider and standalone Provider support two lifecycle stages:
 
 Use the Store recipe and `onStoreInit` only for synchronous construction and validation. Start
 subscriptions, analytics, registrations, and other external effects in `onStoreReady`. Changing
-callback identities does not repeat a lifecycle stage that has already completed.
+callback identities does not repeat a lifecycle stage that has already completed. If
+`onStoreReady` is omitted initially and supplied on a later render, it runs once after that render
+commits.
 
 ## Server rendering and hydration
 
@@ -261,9 +268,10 @@ const resolved = createResolvedStoreHooks(global.store, provider.useProviderStor
 `createStoreProvider` also exposes strict `useContextStoreApi`, Shallow `useContextStore`, Plain
 `useContextStorePlain`, `useIsInsideProvider`, and advanced `useProviderStoreOptional`. Strict hooks
 throw outside the matching Provider. Middleware-enhanced Store capabilities remain on all Store
-handles.
+handles. `createResolvedStoreHooks` returns `useResolvedStoreApi`, Shallow `useResolvedValue`, and
+Plain `useResolvedStorePlain` for custom integrations.
 
-## Migration to the declarative major interface
+## Migration to 1.0
 
 | Previous member | Replacement |
 | --- | --- |
